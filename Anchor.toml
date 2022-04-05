@@ -1,7 +1,7 @@
 [features]
 seeds = false
 [programs.localnet]
-realitycoin_consensus = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+realitycoin_consensus = "3nFoQdq56rXxQgLGQidrBa2Qfqj75c6NhmDCvdJqMEN9"
 
 [registry]
 url = "https://anchor.projectserum.com"
