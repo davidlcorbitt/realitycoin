@@ -28,8 +28,8 @@ describe("realitycoin_consensus", async () => {
     return address;
   };
 
-  const getProgramData = async (pda: Awaited<ReturnType<typeof getPDA>>) =>
-    program.account.programData.fetch(await getPDA(["program-data"]));
+  const getProgramState = async (pda: Awaited<ReturnType<typeof getPDA>>) =>
+    program.account.programState.fetch(await getPDA(["program-data"]));
 
   const airdrop = async (account: anchor.web3.Keypair) =>
     await program.provider.connection.confirmTransaction(
@@ -40,27 +40,27 @@ describe("realitycoin_consensus", async () => {
   const validator1 = anchor.web3.Keypair.generate();
 
   it("Initializes correctly", async () => {
-    const programDataPDA = await getPDA(["program-data"]);
+    const programStatePDA = await getPDA(["program-data"]);
     await program.rpc.initialize(MIN_STAKE, {
       accounts: {
-        programData: programDataPDA,
+        programState: programStatePDA,
         owner: owner.publicKey,
         systemProgram: SystemProgram.programId,
       },
     });
 
-    const programData = await getProgramData(programDataPDA);
-    expect(programData.minStake.toString()).equal(MIN_STAKE.toString());
-    expect(programData.totalStaked.toString()).equal("0");
+    const programState = await getProgramState(programStatePDA);
+    expect(programState.minStake.toString()).equal(MIN_STAKE.toString());
+    expect(programState.totalStaked.toString()).equal("0");
   });
 
   it("Can't be initialized twice", async () => {
-    const programDataPDA = await getPDA(["program-data"]);
+    const programStatePDA = await getPDA(["program-data"]);
 
     await expect(
       program.rpc.initialize(MIN_STAKE, {
         accounts: {
-          programData: programDataPDA,
+          programState: programStatePDA,
           owner: owner.publicKey,
           systemProgram: SystemProgram.programId,
         },
@@ -69,7 +69,7 @@ describe("realitycoin_consensus", async () => {
   });
 
   it("Lets users sign up as validators", async () => {
-    const programData = await getPDA(["program-data"]);
+    const programState = await getPDA(["program-data"]);
 
     await airdrop(validator1);
 
@@ -81,19 +81,19 @@ describe("realitycoin_consensus", async () => {
         stakedValidator: validator1PDA,
         validator: validator1.publicKey,
         systemProgram: SystemProgram.programId,
-        programData,
+        programState,
       },
       signers: [validator1],
     });
 
-    expect((await getProgramData(programData)).totalStaked.toString()).to.equal(
+    expect((await getProgramState(programState)).totalStaked.toString()).to.equal(
       new anchor.BN(5000).toString()
     );
   });
 
   it("Starts a block vote", async () => {
     const miner = anchor.web3.Keypair.generate();
-    const programDataPDA = await getPDA(["program-data"]);
+    const programStatePDA = await getPDA(["program-data"]);
     const blockHash = anchor.web3.Keypair.generate().publicKey;
 
     const blockVotePDA = await getPDA(["block-vote", blockHash]);
@@ -101,15 +101,15 @@ describe("realitycoin_consensus", async () => {
     await program.rpc.startBlockVote(blockHash, miner.publicKey, {
       accounts: {
         blockVote: blockVotePDA,
-        programData: programDataPDA,
+        programState: programStatePDA,
         systemProgram: SystemProgram.programId,
         validator: validator1.publicKey,
       },
       signers: [validator1],
     });
 
-    const programData = await getProgramData(programDataPDA);
-    expect(programData.activeVotes[0].toString()).to.equal(blockHash.toString());
+    const programState = await getProgramState(programStatePDA);
+    expect(programState.activeVotes[0].toString()).to.equal(blockHash.toString());
 
     const blockVote = await program.account.blockVote.fetch(blockVotePDA);
 
