@@ -30,17 +30,29 @@ pub mod state {
     }
 
     #[account]
-    pub struct BlockVote {
+    pub struct VotableBlock {
         pub block_hash: Pubkey,
         pub miner: Pubkey,
         pub validator: Pubkey,
-        pub approve_votes: u32,
-        pub reject_votes: u32,
+        pub approve_votes: u64,
+        pub reject_votes: u64,
         pub expires_at: u64,
     }
-    impl SizeToAllocate for BlockVote {
+    impl SizeToAllocate for VotableBlock {
         fn size_to_allocate() -> usize {
-            8 + mem::size_of::<BlockVote>()
+            8 + mem::size_of::<VotableBlock>()
+        }
+    }
+
+    #[account]
+    pub struct VoteOnBlock {
+        pub validator: Pubkey,
+        pub block_hash: Pubkey,
+        pub approve: bool,
+    }
+    impl SizeToAllocate for VoteOnBlock {
+        fn size_to_allocate() -> usize {
+            8 + mem::size_of::<VoteOnBlock>()
         }
     }
 }

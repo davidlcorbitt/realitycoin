@@ -21,7 +21,7 @@ pub mod realitycoin_consensus {
         #[account(
         init,
         payer = owner,
-        seeds = [b"program-data"],
+        seeds = [b"program-state"],
         bump,
         space = ProgramState::size_to_allocate()
         )]
@@ -67,19 +67,18 @@ pub mod realitycoin_consensus {
     }
     // END IMPLEMENTATION `add_validator`
 
-    // BEGIN IMPLEMENTATION `start_block_vote`
+    // BEGIN IMPLEMENTATION `propose_block_for_voting`
     #[derive(Accounts)]
     #[instruction(block_hash: Pubkey, miner: Pubkey)]
     pub struct StartBlockVote<'info> {
         #[account(
         init,
         payer=validator,
-        // seeds=[b"block-vote"],
-        seeds=[b"block-vote", block_hash.key().as_ref()],
+        seeds=[b"votable-block", block_hash.key().as_ref()],
         bump,
-        space=BlockVote::size_to_allocate()
+        space=VotableBlock::size_to_allocate()
     )]
-        pub block_vote: Account<'info, BlockVote>,
+        pub votable_block: Account<'info, VotableBlock>,
 
         #[account(mut)]
         pub validator: Signer<'info>,
@@ -88,7 +87,7 @@ pub mod realitycoin_consensus {
         pub system_program: Program<'info, System>,
     }
 
-    pub fn start_block_vote(
+    pub fn propose_block_for_voting(
         ctx: Context<StartBlockVote>,
 
         // TODO: I'm using the `Pubkey` type here because it's a convenient
@@ -97,16 +96,62 @@ pub mod realitycoin_consensus {
         block_hash: Pubkey,
         miner: Pubkey,
     ) -> Result<()> {
-        ctx.accounts.block_vote.block_hash = block_hash;
-        ctx.accounts.block_vote.miner = miner;
-        ctx.accounts.block_vote.validator = ctx.accounts.validator.key();
+        ctx.accounts.votable_block.block_hash = block_hash;
+        ctx.accounts.votable_block.miner = miner;
+        ctx.accounts.votable_block.validator = ctx.accounts.validator.key();
 
         let now = Clock::get().unwrap().unix_timestamp;
-        ctx.accounts.block_vote.expires_at = (now + MAX_VOTING_TIME_IN_SECONDS as i64) as u64;
+        ctx.accounts.votable_block.expires_at = (now + MAX_VOTING_TIME_IN_SECONDS as i64) as u64;
 
         ctx.accounts.program_state.active_votes.push(block_hash);
 
         Ok(())
     }
-    // END IMPLEMENTATION `start_block_vote`
+    // END IMPLEMENTATION `propose_block_for_voting`
+
+    // BEING IMPLEMENTATION `cast_vote_on_block`
+    #[derive(Accounts)]
+    #[instruction(block_hash: Pubkey, vote: bool)]
+    pub struct CastVoteOnBlock<'info> {
+        #[account(
+            init,
+            payer=validator,
+            seeds=[b"vote-on-block", block_hash.key().as_ref(), validator.key().as_ref()],
+            bump,
+            space=VoteOnBlock::size_to_allocate()
+        )]
+        pub vote_on_block: Account<'info, VoteOnBlock>,
+
+        #[account(mut)]
+        pub votable_block: Account<'info, VotableBlock>,
+        #[account(mut)]
+        pub program_state: Account<'info, ProgramState>,
+
+        pub staked_validator: Account<'info, StakedValidator>,
+
+        pub system_program: Program<'info, System>,
+
+        #[account(mut)]
+        pub validator: Signer<'info>,
+    }
+
+    pub fn cast_vote_on_block(
+        ctx: Context<CastVoteOnBlock>,
+        block_hash: Pubkey,
+        approve: bool,
+    ) -> Result<()> {
+        // require!(ctx.accounts.votable_block.block_hash == block_hash);
+        ctx.accounts.vote_on_block.block_hash = block_hash;
+        ctx.accounts.vote_on_block.validator = ctx.accounts.validator.key();
+        ctx.accounts.vote_on_block.approve = approve;
+
+        if approve {
+            ctx.accounts.votable_block.approve_votes += ctx.accounts.staked_validator.stake;
+        } else {
+            ctx.accounts.votable_block.reject_votes += ctx.accounts.staked_validator.stake;
+        }
+
+        Ok(())
+    }
+    // END IMPLEMENTATION `cast_vote_on_block`
 }
