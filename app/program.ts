@@ -37,14 +37,19 @@ const createGetters = <
 
 export const programState = createGetters("program-state", program.account.programState);
 
+export const stakedValidator = createGetters<[PublicKey]>(
+  "staked-validator",
+  program.account.stakedValidator
+);
+
 export const votableBlock = createGetters<[PublicKey]>(
   "votable-block",
   program.account.votableBlock
 );
 
-export const stakedValidator = createGetters<[PublicKey]>(
-  "staked-validator",
-  program.account.stakedValidator
+export const voteOnBlock = createGetters<[PublicKey, PublicKey]>(
+  "vote-on-block",
+  program.account.voteOnBlock
 );
 
 export const approvedBlock = createGetters<[PublicKey]>(
@@ -67,12 +72,10 @@ export const airdrop = async (account: anchor.web3.PublicKey) =>
 // PROGRAM INSTRUCTIONS
 
 export const addValidator = async (validator: anchor.web3.Keypair, stake: anchor.BN) => {
-  const validatorPDA = await stakedValidator.pda(validator.publicKey);
-
   await airdrop(validator.publicKey);
   await program.rpc.addValidator(stake, {
     accounts: {
-      stakedValidator: validatorPDA,
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
       validator: validator.publicKey,
       systemProgram: SystemProgram.programId,
       programState: await programState.pda(),
@@ -88,6 +91,7 @@ export const proposeBlockForVoting = async (validator: anchor.web3.Keypair) => {
 
   await program.rpc.proposeBlockForVoting(blockHash, miner.publicKey, {
     accounts: {
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
       votableBlock: votableBlockPDA,
       programState: await programState.pda(),
       systemProgram: SystemProgram.programId,
@@ -103,9 +107,9 @@ export const castVoteOnBlock = async (
   blockHash: anchor.web3.PublicKey,
   approve: boolean
 ) => {
-  await program.rpc.castVoteOnBlock(blockHash, approve, {
+  await program.rpc.castVoteOnBlock(approve, {
     accounts: {
-      voteOnBlock: await getPDA(["vote-on-block", blockHash, validator.publicKey]),
+      voteOnBlock: await voteOnBlock.pda(blockHash, validator.publicKey),
       votableBlock: await votableBlock.pda(blockHash),
       programState: await programState.pda(),
       stakedValidator: await stakedValidator.pda(validator.publicKey),
@@ -140,6 +144,23 @@ export const finalizeBlockRejection = async (
   await program.rpc.finalizeBlockRejection({
     accounts: {
       votableBlock: await votableBlock.pda(blockHash),
+      programState: await programState.pda(),
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
+      systemProgram: SystemProgram.programId,
+      validator: validator.publicKey,
+    },
+    signers: [validator],
+  });
+};
+
+export const collectValidatorReward = async (
+  validator: anchor.web3.Keypair,
+  blockHash: anchor.web3.PublicKey
+) => {
+  await program.rpc.collectValidatorReward({
+    accounts: {
+      votableBlock: await votableBlock.pda(blockHash),
+      voteOnBlock: await voteOnBlock.pda(blockHash, validator.publicKey),
       programState: await programState.pda(),
       stakedValidator: await stakedValidator.pda(validator.publicKey),
       systemProgram: SystemProgram.programId,

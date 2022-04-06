@@ -5,8 +5,14 @@ mod state;
 
 declare_id!("3nFoQdq56rXxQgLGQidrBa2Qfqj75c6NhmDCvdJqMEN9");
 
-// Give validators a maximum of 4 hours to process a block
+// Once voting has started for a block, it has 4 hours to get enough votes to be
+// approved, otherwise it can be rejected.
 const MAX_VOTING_TIME_IN_SECONDS: i64 = 60 * 60 * 4;
+
+// Once a vote has finalized, validators who participated in the vote have a
+// minimum of 4 hours to collect their reward before collecting the vote to
+// recover the rent.
+const MIN_TIME_BEFORE_GARBAGE_COLLECTING_VOTE: i64 = 60 * 60 * 4;
 #[program]
 pub mod realitycoin_consensus {
     use super::*;
@@ -46,7 +52,7 @@ pub mod realitycoin_consensus {
             payer = validator,
             seeds = [b"staked-validator", validator.key().as_ref()],
             bump,
-            space = StakedValidator::size_to_allocate()
+            space = StakedValidator::size_to_allocate(),
         )]
         pub staked_validator: Account<'info, StakedValidator>,
         #[account(mut)]
@@ -75,9 +81,12 @@ pub mod realitycoin_consensus {
             payer=validator,
             seeds=[b"votable-block", block_hash.key().as_ref()],
             bump,
-            space=VotableBlock::size_to_allocate()
+            space=VotableBlock::size_to_allocate(),
         )]
         pub votable_block: Account<'info, VotableBlock>,
+
+        #[account(has_one=validator)]
+        pub staked_validator: Account<'info, StakedValidator>,
 
         #[account(mut)]
         pub validator: Signer<'info>,
@@ -110,12 +119,16 @@ pub mod realitycoin_consensus {
 
     // BEING IMPLEMENTATION `cast_vote_on_block`
     #[derive(Accounts)]
-    #[instruction(block_hash: Pubkey, vote: bool)]
+    #[instruction(vote: bool)]
     pub struct CastVoteOnBlock<'info> {
         #[account(
             init,
             payer=validator,
-            seeds=[b"vote-on-block", block_hash.key().as_ref(), validator.key().as_ref()],
+            seeds=[
+                b"vote-on-block",
+                votable_block.block_hash.key().as_ref(),
+                validator.key().as_ref()
+            ],
             bump,
             space=VoteOnBlock::size_to_allocate()
         )]
@@ -126,6 +139,7 @@ pub mod realitycoin_consensus {
         #[account(mut)]
         pub program_state: Account<'info, ProgramState>,
 
+        #[account(has_one=validator)]
         pub staked_validator: Account<'info, StakedValidator>,
 
         #[account(mut)]
@@ -133,13 +147,8 @@ pub mod realitycoin_consensus {
         pub system_program: Program<'info, System>,
     }
 
-    pub fn cast_vote_on_block(
-        ctx: Context<CastVoteOnBlock>,
-        block_hash: Pubkey,
-        approve: bool,
-    ) -> Result<()> {
-        // require!(ctx.accounts.votable_block.block_hash == block_hash);
-        ctx.accounts.vote_on_block.block_hash = block_hash;
+    pub fn cast_vote_on_block(ctx: Context<CastVoteOnBlock>, approve: bool) -> Result<()> {
+        ctx.accounts.vote_on_block.block_hash = ctx.accounts.votable_block.block_hash;
         ctx.accounts.vote_on_block.validator = ctx.accounts.validator.key();
         ctx.accounts.vote_on_block.approve = approve;
 
@@ -196,6 +205,7 @@ pub mod realitycoin_consensus {
         );
 
         ctx.accounts.votable_block.voting_finalized_at = Clock::get().unwrap().unix_timestamp;
+        ctx.accounts.votable_block.approved = true;
 
         ctx.accounts.program_state.active_votes = ctx
             .accounts
@@ -264,17 +274,78 @@ pub mod realitycoin_consensus {
 
     // BEGIN IMPLEMENTATION `collect_validator_reward`
 
-    // pub fn
+    // For now give you a 1% staking reward for each block you vote to approve.
+    // This is just to demonstrate how the system works; in prod this number
+    // will be far, far smaller.
+    const CORRECT_VOTE_REWARD_MULTIPLE_DENOMINATOR: u32 = 100;
+    #[derive(Accounts)]
+    pub struct CollectValidatorReward<'info> {
+        #[account(mut, close = validator, has_one=validator)]
+        pub vote_on_block: Account<'info, VoteOnBlock>,
 
+        #[account(mut, has_one=validator)]
+        pub staked_validator: Account<'info, StakedValidator>,
+
+        pub votable_block: Account<'info, VotableBlock>,
+        pub program_state: Account<'info, ProgramState>,
+
+        #[account(mut)]
+        pub validator: Signer<'info>,
+        pub system_program: Program<'info, System>,
+    }
+
+    pub fn collect_validator_reward(ctx: Context<CollectValidatorReward>) -> Result<()> {
+        require!(
+            !ctx.accounts.vote_on_block.reward_collected,
+            Errors::ValidatorRewardAlreadyCollected
+        );
+        require!(
+            ctx.accounts.votable_block.voting_finalized_at > 0,
+            Errors::VotingNotEnded
+        );
+
+        // Currently, you only get a reward if you correctly voted to approve a block.
+        if ctx.accounts.vote_on_block.approve && ctx.accounts.votable_block.approved {
+            ctx.accounts.staked_validator.stake += ctx.accounts.staked_validator.stake
+                / CORRECT_VOTE_REWARD_MULTIPLE_DENOMINATOR as u64;
+        }
+
+        ctx.accounts.vote_on_block.reward_collected = true;
+        // Garbage collect votable block
+
+        Ok(())
+    }
     // END IMPLEMENTATION `collect_validator_reward`
 
     // BEGIN IMPLEMENTATION `garbage_collect_vote`
 
+    #[derive(Accounts)]
+    pub struct GarbageCollectVote<'info> {
+        pub validator: Signer<'info>,
+
+        #[account(mut, has_one=validator, close=validator)]
+        pub votable_block: Account<'info, VotableBlock>,
+    }
+
+    pub fn garbage_collect_vote(ctx: Context<GarbageCollectVote>) -> Result<()> {
+        let now = Clock::get().unwrap().unix_timestamp;
+
+        require!(
+            now - ctx.accounts.votable_block.voting_finalized_at
+                > MIN_TIME_BEFORE_GARBAGE_COLLECTING_VOTE,
+            Errors::GarbageCollectVoteTooSoon
+        );
+
+        Ok(())
+    }
     // END IMPLEMENTATION `garbage_collect_vote`
 }
 
 #[error_code]
 pub enum Errors {
+    #[msg("One of the given accounts is associated with a different validator")]
+    ValidatorMismatch,
+
     #[msg("The given block doesn't have enough approval votes to be finalized")]
     ApprovalThresholdNotReached,
 
@@ -283,4 +354,13 @@ pub enum Errors {
 
     #[msg("The given block is already finalized")]
     BlockAlreadyFinalized,
+
+    #[msg("Validator reward already collected")]
+    ValidatorRewardAlreadyCollected,
+
+    #[msg("Voting hasn't ended for the given block")]
+    VotingNotEnded,
+
+    #[msg("You must wait for MIN_TIME_BEFORE_GARBAGE_COLLECTING_VOTE seconds before garbage collecting a vote")]
+    GarbageCollectVoteTooSoon,
 }

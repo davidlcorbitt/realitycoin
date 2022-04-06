@@ -35,6 +35,7 @@ pub mod state {
         pub approve_votes: u64,
         pub reject_votes: u64,
         pub expires_at: i64,
+        pub approved: bool,
         pub voting_finalized_at: i64,
     }
     impl SizeToAllocate<VotableBlock> for VotableBlock {}

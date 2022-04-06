@@ -6,12 +6,13 @@ import {
   addValidator,
   approvedBlock,
   castVoteOnBlock,
+  collectValidatorReward,
   finalizeBlockApproval,
   finalizeBlockRejection,
-  getPDA,
   program,
   programState,
   proposeBlockForVoting,
+  stakedValidator,
 } from "../app/program";
 
 chai.use(chaiAsPromised);
@@ -122,5 +123,23 @@ describe("realitycoin_consensus", async () => {
     await castVoteOnBlock(validators[1], blockHash, false);
 
     await finalizeBlockRejection(validators[0], blockHash);
+  });
+
+  it("Collects validator rewards for correctly approved blocks", async () => {
+    const { blockHash } = await proposeBlockForVoting(validators[0]);
+
+    await castVoteOnBlock(validators[0], blockHash, true);
+    await castVoteOnBlock(validators[1], blockHash, true);
+
+    await expect(collectValidatorReward(validators[0], blockHash)).to.eventually.be.rejectedWith(
+      /VotingNotEnded/
+    );
+
+    await finalizeBlockApproval(validators[0], blockHash);
+
+    await collectValidatorReward(validators[0], blockHash);
+    const validator = await stakedValidator.val(validators[0].publicKey);
+
+    expect(validator.stake.toString()).to.equal("5050");
   });
 });
