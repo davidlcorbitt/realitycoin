@@ -178,6 +178,11 @@ pub mod realitycoin_consensus {
     }
 
     pub fn finalize_block_approval(ctx: Context<FinalizeBlockApproval>) -> Result<()> {
+        require!(
+            ctx.accounts.votable_block.voting_finalized_at == 0,
+            Errors::BlockAlreadyFinalized
+        );
+
         // A block can only be approved if more than 50% of validators have
         // voted to approve it. A block can be rejected if more than 50% of
         // validators have voted to reject it, or if its voting period has
@@ -203,22 +208,6 @@ pub mod realitycoin_consensus {
 
         ctx.accounts.approved_block.block_hash = ctx.accounts.votable_block.block_hash;
 
-        // TODO: transfer block rewards to miner and lead validator.
-
-        if approval_threshold_reached {
-        } else {
-            let rejection_threshold_reached = ctx.accounts.votable_block.reject_votes
-                > ctx.accounts.program_state.total_staked / 2;
-
-            let now = Clock::get().unwrap().unix_timestamp;
-            let voting_expired = ctx.accounts.votable_block.expires_at < now;
-
-            require!(
-                rejection_threshold_reached || voting_expired,
-                Errors::VotingNotComplete
-            );
-        }
-
         Ok(())
     }
 
@@ -226,9 +215,62 @@ pub mod realitycoin_consensus {
 
     // BEGIN IMPLEMENTATION `finalize_block_rejection`
 
+    #[derive(Accounts)]
+    pub struct FinalizeBlockRejection<'info> {
+        #[account(mut)]
+        pub votable_block: Account<'info, VotableBlock>,
+        #[account(mut)]
+        pub program_state: Account<'info, ProgramState>,
+
+        pub staked_validator: Account<'info, StakedValidator>,
+
+        #[account(mut)]
+        pub validator: Signer<'info>,
+        pub system_program: Program<'info, System>,
+    }
+
+    pub fn finalize_block_rejection(ctx: Context<FinalizeBlockRejection>) -> Result<()> {
+        require!(
+            ctx.accounts.votable_block.voting_finalized_at == 0,
+            Errors::BlockAlreadyFinalized
+        );
+
+        // A block can be rejected if more than 50% of validators have voted to
+        // reject it, or if its voting period has expired.
+        let rejection_threshold_reached =
+            ctx.accounts.votable_block.reject_votes > ctx.accounts.program_state.total_staked / 2;
+
+        let now = Clock::get().unwrap().unix_timestamp;
+        let voting_expired = ctx.accounts.votable_block.expires_at < now;
+
+        require!(
+            rejection_threshold_reached || voting_expired,
+            Errors::RejectionThresholdNotReached
+        );
+
+        ctx.accounts.votable_block.voting_finalized_at = Clock::get().unwrap().unix_timestamp;
+
+        ctx.accounts.program_state.active_votes = ctx
+            .accounts
+            .program_state
+            .active_votes
+            .iter()
+            .filter(|&block_hash| block_hash != &ctx.accounts.votable_block.block_hash)
+            .cloned()
+            .collect();
+
+        Ok(())
+    }
+
     // BEGIN IMPLEMENTATION `collect_validator_reward`
 
+    // pub fn
+
     // END IMPLEMENTATION `collect_validator_reward`
+
+    // BEGIN IMPLEMENTATION `garbage_collect_vote`
+
+    // END IMPLEMENTATION `garbage_collect_vote`
 }
 
 #[error_code]
@@ -236,6 +278,9 @@ pub enum Errors {
     #[msg("The given block doesn't have enough approval votes to be finalized")]
     ApprovalThresholdNotReached,
 
-    #[msg("Voting cannot yet be finalized for this block")]
-    VotingNotComplete,
+    #[msg("The given block doesn't have enough rejection votes to be finalized")]
+    RejectionThresholdNotReached,
+
+    #[msg("The given block is already finalized")]
+    BlockAlreadyFinalized,
 }

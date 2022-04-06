@@ -6,7 +6,9 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 anchor.setProvider(anchor.Provider.env());
 export const program = anchor.workspace.RealitycoinConsensus as Program<RealitycoinConsensus>;
 
-const getPDA = async (seeds: (string | PublicKey | Buffer)[]) => {
+// PROGRAM STATE GETTERS
+
+export const getPDA = async (seeds: (string | PublicKey | Buffer)[]) => {
   const encodedSeeds = seeds.map((seed) =>
     seed instanceof Buffer
       ? seed
@@ -20,10 +22,39 @@ const getPDA = async (seeds: (string | PublicKey | Buffer)[]) => {
   return address;
 };
 
-export const getProgramStatePDA = () => getPDA(["program-state"]);
+const createGetters = <
+  Args extends Array<typeof getPDA["arguments"][0]>,
+  T extends anchor.AccountClient = anchor.AccountClient
+>(
+  discriminator: string,
+  account: T
+) => {
+  return {
+    pda: (...args: Args) => getPDA([discriminator, ...args]),
+    val: async (...args) => account.fetch(await getPDA([discriminator, ...args])),
+  };
+};
 
-export const getProgramState = async () =>
-  program.account.programState.fetch(await getProgramStatePDA());
+export const programState = createGetters("program-state", program.account.programState);
+
+export const votableBlock = createGetters<[PublicKey]>(
+  "votable-block",
+  program.account.votableBlock
+);
+
+export const stakedValidator = createGetters<[PublicKey]>(
+  "staked-validator",
+  program.account.stakedValidator
+);
+
+export const approvedBlock = createGetters<[PublicKey]>(
+  "approved-block",
+  program.account.approvedBlock
+);
+
+// END PROGRAM STATE GETTERS
+
+// UTILITY FUNCTIONS
 
 export const airdrop = async (account: anchor.web3.PublicKey) =>
   await program.provider.connection.confirmTransaction(
@@ -31,9 +62,12 @@ export const airdrop = async (account: anchor.web3.PublicKey) =>
     "processed"
   );
 
+// END UTILITY FUNCTIONS
+
+// PROGRAM INSTRUCTIONS
+
 export const addValidator = async (validator: anchor.web3.Keypair, stake: anchor.BN) => {
-  const programState = await getProgramStatePDA();
-  const validatorPDA = await getPDA(["staked-validator", validator.publicKey]);
+  const validatorPDA = await stakedValidator.pda(validator.publicKey);
 
   await airdrop(validator.publicKey);
   await program.rpc.addValidator(stake, {
@@ -41,7 +75,7 @@ export const addValidator = async (validator: anchor.web3.Keypair, stake: anchor
       stakedValidator: validatorPDA,
       validator: validator.publicKey,
       systemProgram: SystemProgram.programId,
-      programState,
+      programState: await programState.pda(),
     },
     signers: [validator],
   });
@@ -50,12 +84,12 @@ export const addValidator = async (validator: anchor.web3.Keypair, stake: anchor
 export const proposeBlockForVoting = async (validator: anchor.web3.Keypair) => {
   const blockHash = anchor.web3.Keypair.generate().publicKey;
   const miner = anchor.web3.Keypair.generate();
-  const votableBlockPDA = await getPDA(["votable-block", blockHash]);
+  const votableBlockPDA = await votableBlock.pda(blockHash);
 
   await program.rpc.proposeBlockForVoting(blockHash, miner.publicKey, {
     accounts: {
       votableBlock: votableBlockPDA,
-      programState: await getProgramStatePDA(),
+      programState: await programState.pda(),
       systemProgram: SystemProgram.programId,
       validator: validator.publicKey,
     },
@@ -69,17 +103,12 @@ export const castVoteOnBlock = async (
   blockHash: anchor.web3.PublicKey,
   approve: boolean
 ) => {
-  const votableBlockPDA = await getPDA(["votable-block", blockHash]);
-  const voteOnBlockPDA = await getPDA(["vote-on-block", blockHash, validator.publicKey]);
-  const validatorPDA = await getPDA(["staked-validator", validator.publicKey]);
-  const programStatePDA = await getProgramStatePDA();
-
   await program.rpc.castVoteOnBlock(blockHash, approve, {
     accounts: {
-      voteOnBlock: voteOnBlockPDA,
-      votableBlock: votableBlockPDA,
-      programState: programStatePDA,
-      stakedValidator: validatorPDA,
+      voteOnBlock: await getPDA(["vote-on-block", blockHash, validator.publicKey]),
+      votableBlock: await votableBlock.pda(blockHash),
+      programState: await programState.pda(),
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
       systemProgram: SystemProgram.programId,
       validator: validator.publicKey,
     },
@@ -91,17 +120,33 @@ export const finalizeBlockApproval = async (
   validator: anchor.web3.Keypair,
   blockHash: anchor.web3.PublicKey
 ) => {
-  const votableBlockPDA = await getPDA(["votable-block", blockHash]);
-
   await program.rpc.finalizeBlockApproval({
     accounts: {
-      votableBlock: votableBlockPDA,
-      approvedBlock: await getPDA(["approved-block", blockHash]),
-      programState: await getProgramStatePDA(),
-      stakedValidator: await getPDA(["staked-validator", validator.publicKey]),
+      votableBlock: await votableBlock.pda(blockHash),
+      approvedBlock: await approvedBlock.pda(blockHash),
+      programState: await programState.pda(),
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
       systemProgram: SystemProgram.programId,
       validator: validator.publicKey,
     },
     signers: [validator],
   });
 };
+
+export const finalizeBlockRejection = async (
+  validator: anchor.web3.Keypair,
+  blockHash: anchor.web3.PublicKey
+) => {
+  await program.rpc.finalizeBlockRejection({
+    accounts: {
+      votableBlock: await votableBlock.pda(blockHash),
+      programState: await programState.pda(),
+      stakedValidator: await stakedValidator.pda(validator.publicKey),
+      systemProgram: SystemProgram.programId,
+      validator: validator.publicKey,
+    },
+    signers: [validator],
+  });
+};
+
+// END PROGRAM INSTRUCTIONS
