@@ -1,7 +1,7 @@
 {
   "scripts": {
     "test": "anchor test",
-    "test:watch": "nodemon --watch tests --watch programs -e rs,ts --exec \"anchor test\""
+    "test:watch": "nodemon --watch tests --watch programs --watch app -e rs,ts --exec \"anchor test\""
   },
   "dependencies": {
     "@project-serum/anchor": "^0.23.0"

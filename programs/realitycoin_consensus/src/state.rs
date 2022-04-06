@@ -2,8 +2,10 @@ pub mod state {
     use anchor_lang::prelude::*;
     use std::mem;
 
-    pub trait SizeToAllocate {
-        fn size_to_allocate() -> usize;
+    pub trait SizeToAllocate<T> {
+        fn size_to_allocate() -> usize {
+            8 + mem::size_of::<T>()
+        }
     }
 
     #[account]
@@ -12,7 +14,7 @@ pub mod state {
         pub total_staked: u64,
         pub active_votes: Vec<Pubkey>,
     }
-    impl SizeToAllocate for ProgramState {
+    impl SizeToAllocate<ProgramState> for ProgramState {
         fn size_to_allocate() -> usize {
             8 + mem::size_of::<ProgramState>() + 100 * mem::size_of::<Pubkey>()
         }
@@ -23,11 +25,7 @@ pub mod state {
         pub validator: Pubkey,
         pub stake: u64,
     }
-    impl SizeToAllocate for StakedValidator {
-        fn size_to_allocate() -> usize {
-            8 + mem::size_of::<StakedValidator>()
-        }
-    }
+    impl SizeToAllocate<StakedValidator> for StakedValidator {}
 
     #[account]
     pub struct VotableBlock {
@@ -36,23 +34,23 @@ pub mod state {
         pub validator: Pubkey,
         pub approve_votes: u64,
         pub reject_votes: u64,
-        pub expires_at: u64,
+        pub expires_at: i64,
+        pub voting_finalized_at: i64,
     }
-    impl SizeToAllocate for VotableBlock {
-        fn size_to_allocate() -> usize {
-            8 + mem::size_of::<VotableBlock>()
-        }
-    }
+    impl SizeToAllocate<VotableBlock> for VotableBlock {}
 
     #[account]
     pub struct VoteOnBlock {
         pub validator: Pubkey,
         pub block_hash: Pubkey,
         pub approve: bool,
+        pub reward_collected: bool,
     }
-    impl SizeToAllocate for VoteOnBlock {
-        fn size_to_allocate() -> usize {
-            8 + mem::size_of::<VoteOnBlock>()
-        }
+    impl SizeToAllocate<VoteOnBlock> for VoteOnBlock {}
+
+    #[account]
+    pub struct ApprovedBlock {
+        pub block_hash: Pubkey,
     }
+    impl SizeToAllocate<ApprovedBlock> for ApprovedBlock {}
 }

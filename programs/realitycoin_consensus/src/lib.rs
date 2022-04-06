@@ -6,8 +6,7 @@ mod state;
 declare_id!("3nFoQdq56rXxQgLGQidrBa2Qfqj75c6NhmDCvdJqMEN9");
 
 // Give validators a maximum of 4 hours to process a block
-const MAX_VOTING_TIME_IN_SECONDS: u32 = 60 * 60 * 4;
-
+const MAX_VOTING_TIME_IN_SECONDS: i64 = 60 * 60 * 4;
 #[program]
 pub mod realitycoin_consensus {
     use super::*;
@@ -70,14 +69,14 @@ pub mod realitycoin_consensus {
     // BEGIN IMPLEMENTATION `propose_block_for_voting`
     #[derive(Accounts)]
     #[instruction(block_hash: Pubkey, miner: Pubkey)]
-    pub struct StartBlockVote<'info> {
+    pub struct ProposeBlockForVoting<'info> {
         #[account(
-        init,
-        payer=validator,
-        seeds=[b"votable-block", block_hash.key().as_ref()],
-        bump,
-        space=VotableBlock::size_to_allocate()
-    )]
+            init,
+            payer=validator,
+            seeds=[b"votable-block", block_hash.key().as_ref()],
+            bump,
+            space=VotableBlock::size_to_allocate()
+        )]
         pub votable_block: Account<'info, VotableBlock>,
 
         #[account(mut)]
@@ -88,7 +87,7 @@ pub mod realitycoin_consensus {
     }
 
     pub fn propose_block_for_voting(
-        ctx: Context<StartBlockVote>,
+        ctx: Context<ProposeBlockForVoting>,
 
         // TODO: I'm using the `Pubkey` type here because it's a convenient
         // existing 32-byte container. Need to figure out how to implement a
@@ -101,7 +100,7 @@ pub mod realitycoin_consensus {
         ctx.accounts.votable_block.validator = ctx.accounts.validator.key();
 
         let now = Clock::get().unwrap().unix_timestamp;
-        ctx.accounts.votable_block.expires_at = (now + MAX_VOTING_TIME_IN_SECONDS as i64) as u64;
+        ctx.accounts.votable_block.expires_at = now + MAX_VOTING_TIME_IN_SECONDS;
 
         ctx.accounts.program_state.active_votes.push(block_hash);
 
@@ -129,10 +128,9 @@ pub mod realitycoin_consensus {
 
         pub staked_validator: Account<'info, StakedValidator>,
 
-        pub system_program: Program<'info, System>,
-
         #[account(mut)]
         pub validator: Signer<'info>,
+        pub system_program: Program<'info, System>,
     }
 
     pub fn cast_vote_on_block(
@@ -154,4 +152,90 @@ pub mod realitycoin_consensus {
         Ok(())
     }
     // END IMPLEMENTATION `cast_vote_on_block`
+
+    // BEGIN IMPLEMENTATION `finalize_block_approval`
+    #[derive(Accounts)]
+    pub struct FinalizeBlockApproval<'info> {
+        #[account(mut)]
+        pub votable_block: Account<'info, VotableBlock>,
+        #[account(mut)]
+        pub program_state: Account<'info, ProgramState>,
+
+        pub staked_validator: Account<'info, StakedValidator>,
+
+        #[account(
+            init,
+            payer=validator,
+            seeds=[b"approved-block", votable_block.block_hash.key().as_ref()],
+            bump,
+            space = ApprovedBlock::size_to_allocate()
+        )]
+        pub approved_block: Account<'info, ApprovedBlock>,
+
+        #[account(mut)]
+        pub validator: Signer<'info>,
+        pub system_program: Program<'info, System>,
+    }
+
+    pub fn finalize_block_approval(ctx: Context<FinalizeBlockApproval>) -> Result<()> {
+        // A block can only be approved if more than 50% of validators have
+        // voted to approve it. A block can be rejected if more than 50% of
+        // validators have voted to reject it, or if its voting period has
+        // expired.
+        let approval_threshold_reached =
+            ctx.accounts.votable_block.approve_votes > ctx.accounts.program_state.total_staked / 2;
+
+        require!(
+            approval_threshold_reached,
+            Errors::ApprovalThresholdNotReached
+        );
+
+        ctx.accounts.votable_block.voting_finalized_at = Clock::get().unwrap().unix_timestamp;
+
+        ctx.accounts.program_state.active_votes = ctx
+            .accounts
+            .program_state
+            .active_votes
+            .iter()
+            .filter(|&block_hash| block_hash != &ctx.accounts.votable_block.block_hash)
+            .cloned()
+            .collect();
+
+        ctx.accounts.approved_block.block_hash = ctx.accounts.votable_block.block_hash;
+
+        // TODO: transfer block rewards to miner and lead validator.
+
+        if approval_threshold_reached {
+        } else {
+            let rejection_threshold_reached = ctx.accounts.votable_block.reject_votes
+                > ctx.accounts.program_state.total_staked / 2;
+
+            let now = Clock::get().unwrap().unix_timestamp;
+            let voting_expired = ctx.accounts.votable_block.expires_at < now;
+
+            require!(
+                rejection_threshold_reached || voting_expired,
+                Errors::VotingNotComplete
+            );
+        }
+
+        Ok(())
+    }
+
+    // END IMPLEMENTATION `finalize_block_approval`
+
+    // BEGIN IMPLEMENTATION `finalize_block_rejection`
+
+    // BEGIN IMPLEMENTATION `collect_validator_reward`
+
+    // END IMPLEMENTATION `collect_validator_reward`
+}
+
+#[error_code]
+pub enum Errors {
+    #[msg("The given block doesn't have enough approval votes to be finalized")]
+    ApprovalThresholdNotReached,
+
+    #[msg("Voting cannot yet be finalized for this block")]
+    VotingNotComplete,
 }

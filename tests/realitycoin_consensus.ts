@@ -1,69 +1,47 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { SystemProgram } from "@solana/web3.js";
 import chai, { expect } from "chai";
-import { RealitycoinConsensus } from "../target/types/realitycoin_consensus";
 import chaiAsPromised from "chai-as-promised";
+import {
+  addValidator,
+  castVoteOnBlock,
+  finalizeBlockApproval,
+  getProgramState,
+  getProgramStatePDA,
+  program,
+  proposeBlockForVoting,
+} from "../app/program";
 
 chai.use(chaiAsPromised);
 
-const MIN_STAKE = new anchor.BN(5000);
-anchor.setProvider(anchor.Provider.env());
-const program = anchor.workspace.RealitycoinConsensus as Program<RealitycoinConsensus>;
-
-const blockHash = anchor.web3.Keypair.generate().publicKey;
-
 describe("realitycoin_consensus", async () => {
-  const owner = program.provider.wallet;
-
-  const getPDA = async (seeds: (string | PublicKey | Buffer)[]) => {
-    const encodedSeeds = seeds.map((seed) =>
-      seed instanceof Buffer
-        ? seed
-        : seed instanceof PublicKey
-        ? seed.toBuffer()
-        : anchor.utils.bytes.utf8.encode(seed)
-    );
-
-    const [address, _] = await PublicKey.findProgramAddress(encodedSeeds, program.programId);
-
-    return address;
-  };
-
-  const getProgramState = async (pda: Awaited<ReturnType<typeof getPDA>>) =>
-    program.account.programState.fetch(await getPDA(["program-state"]));
-
-  const airdrop = async (account: anchor.web3.Keypair) =>
-    await program.provider.connection.confirmTransaction(
-      await program.provider.connection.requestAirdrop(account.publicKey, 1000000000),
-      "processed"
-    );
-
-  const validator1 = anchor.web3.Keypair.generate();
+  const validators = Array(3)
+    .fill("")
+    .map(() => anchor.web3.Keypair.generate());
 
   it("Initializes correctly", async () => {
-    const programStatePDA = await getPDA(["program-state"]);
-    await program.rpc.initialize(MIN_STAKE, {
+    const programStatePDA = await getProgramStatePDA();
+    await program.rpc.initialize(new anchor.BN(5000), {
       accounts: {
         programState: programStatePDA,
-        owner: owner.publicKey,
+        owner: program.provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
       },
     });
 
-    const programState = await getProgramState(programStatePDA);
-    expect(programState.minStake.toString()).equal(MIN_STAKE.toString());
+    const programState = await getProgramState();
+    expect(programState.minStake.toString()).equal("5000");
     expect(programState.totalStaked.toString()).equal("0");
   });
 
   it("Can't be initialized twice", async () => {
-    const programStatePDA = await getPDA(["program-state"]);
+    const programStatePDA = await getProgramStatePDA();
 
     await expect(
-      program.rpc.initialize(MIN_STAKE, {
+      program.rpc.initialize(new anchor.BN(5000), {
         accounts: {
           programState: programStatePDA,
-          owner: owner.publicKey,
+          owner: program.provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
         },
       })
@@ -71,44 +49,17 @@ describe("realitycoin_consensus", async () => {
   });
 
   it("Lets users sign up as validators", async () => {
-    const programState = await getPDA(["program-state"]);
+    await Promise.all(validators.map((validator) => addValidator(validator, new anchor.BN(5000))));
 
-    await airdrop(validator1);
-
-    const validator1PDA = await getPDA(["staked-validator", validator1.publicKey]);
-
-    const stake: anchor.BN = new anchor.BN(5000);
-    await program.rpc.addValidator(stake, {
-      accounts: {
-        stakedValidator: validator1PDA,
-        validator: validator1.publicKey,
-        systemProgram: SystemProgram.programId,
-        programState,
-      },
-      signers: [validator1],
-    });
-
-    expect((await getProgramState(programState)).totalStaked.toString()).to.equal(
-      new anchor.BN(5000).toString()
+    expect((await getProgramState()).totalStaked.toString()).to.equal(
+      new anchor.BN(15000).toString()
     );
   });
 
-  it("Starts a block vote", async () => {
-    const miner = anchor.web3.Keypair.generate();
-    const programStatePDA = await getPDA(["program-state"]);
-    const votableBlockPDA = await getPDA(["votable-block", blockHash]);
+  it("Proposes a block vote", async () => {
+    const { blockHash, votableBlockPDA, miner } = await proposeBlockForVoting(validators[0]);
 
-    await program.rpc.proposeBlockForVoting(blockHash, miner.publicKey, {
-      accounts: {
-        votableBlock: votableBlockPDA,
-        programState: programStatePDA,
-        systemProgram: SystemProgram.programId,
-        validator: validator1.publicKey,
-      },
-      signers: [validator1],
-    });
-
-    const programState = await getProgramState(programStatePDA);
+    const programState = await getProgramState();
     expect(programState.activeVotes[0].toString()).to.equal(blockHash.toString());
 
     const votableBlock = await program.account.votableBlock.fetch(votableBlockPDA);
@@ -122,31 +73,24 @@ describe("realitycoin_consensus", async () => {
   });
 
   it("Casts votes on a block", async () => {
-    const programStatePDA = await getPDA(["program-state"]);
-    const voteOnBlockPDA = await getPDA(["vote-on-block", blockHash, validator1.publicKey]);
-    const validator1PDA = await getPDA(["staked-validator", validator1.publicKey]);
-    const votableBlockPDA = await getPDA(["votable-block", blockHash]);
+    const { blockHash, votableBlockPDA } = await proposeBlockForVoting(validators[0]);
 
-    // const
-
-    await program.rpc.castVoteOnBlock(blockHash, true, {
-      accounts: {
-        voteOnBlock: voteOnBlockPDA,
-        votableBlock: votableBlockPDA,
-        programState: programStatePDA,
-        stakedValidator: validator1PDA,
-        systemProgram: SystemProgram.programId,
-        validator: validator1.publicKey,
-      },
-      signers: [validator1],
-    });
-
-    const programState = await getProgramState(programStatePDA);
-    expect(programState.activeVotes[0].toString()).to.equal(blockHash.toString());
+    await castVoteOnBlock(validators[0], blockHash, true);
+    await castVoteOnBlock(validators[1], blockHash, false);
+    await castVoteOnBlock(validators[2], blockHash, true);
 
     const votableBlock = await program.account.votableBlock.fetch(votableBlockPDA);
 
-    expect(votableBlock.approveVotes.toString()).to.equal("5000");
-    expect(votableBlock.rejectVotes.toString()).to.equal("0");
+    expect(votableBlock.approveVotes.toString()).to.equal("10000");
+    expect(votableBlock.rejectVotes.toString()).to.equal("5000");
+  });
+
+  it("Finalizes approved blocks", async () => {
+    const { blockHash } = await proposeBlockForVoting(validators[0]);
+
+    await castVoteOnBlock(validators[0], blockHash, true);
+    await castVoteOnBlock(validators[1], blockHash, true);
+
+    await finalizeBlockApproval(validators[0], blockHash);
   });
 });
