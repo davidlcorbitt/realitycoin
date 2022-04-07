@@ -8,7 +8,6 @@ trap 'trap - SIGTERM && pkill -P $$' SIGINT SIGTERM EXIT
 
 solana-test-validator &
 
-anchor build
-solana program deploy /Users/kyle/proj/realitycoin_consensus/target/deploy/realitycoin_consensus.so
+anchor build && anchor deploy --provider.cluster localnet
 
 sleep 99999999

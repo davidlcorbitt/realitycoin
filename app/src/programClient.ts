@@ -1,20 +1,50 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-import { RealitycoinConsensus } from "../target/types/realitycoin_consensus";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import NodeWallet from "@project-serum/anchor/dist/esm/nodewallet";
+import { isBrowser } from "@project-serum/anchor/dist/esm/utils/common";
+import anchorWorkspace from "@project-serum/anchor/dist/esm/workspace";
+import { RealitycoinConsensus } from "./target/types/realitycoin_consensus";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import idl from "./target/idl/realitycoin_consensus.json";
 
-anchor.setProvider(anchor.Provider.env());
-export const program = anchor.workspace.RealitycoinConsensus as Program<RealitycoinConsensus>;
+// Get a copy of the program configured to run against a local test network.
+const getLocalProgram = () => {
+  const programID = "9bP6UsBbWu1NQdco93V38CfhhNEracDuGA5VEhWpPXB8";
+  const wallet = new NodeWallet(anchor.web3.Keypair.generate());
 
+  const network = "http://127.0.0.1:8899";
+  const connection = new Connection(network);
+
+  const provider = new anchor.Provider(connection, wallet, {
+    preflightCommitment: "processed",
+  });
+
+  return new Program<RealitycoinConsensus>(
+    // @ts-ignore
+    idl,
+    new PublicKey(programID),
+    provider
+  );
+};
+
+// If the anchor workspace is available, use that (used in tests). Otherwise,
+// the only supported option at the moment is to use a local test network.
+export const program: Program<RealitycoinConsensus> = isBrowser
+  ? getLocalProgram()
+  : anchorWorkspace.RealitycoinConsensus;
+
+// export const program = getLocalProgram();
 // PROGRAM STATE GETTERS
 
 export const getPDA = async (seeds: (string | PublicKey | Buffer)[]) => {
   const encodedSeeds = seeds.map((seed) =>
     seed instanceof Buffer
       ? seed
-      : seed instanceof PublicKey
-      ? seed.toBuffer()
-      : anchor.utils.bytes.utf8.encode(seed)
+      : // Have to do this since we don't have a single version of @solana/web3.js
+      // so the more obvious `seed instanceof PublicKey` isn't reliable.
+      seed.constructor.name === "PublicKey"
+      ? (seed as PublicKey).toBuffer()
+      : anchor.utils.bytes.utf8.encode(seed as string)
   );
 
   const [address, _] = await PublicKey.findProgramAddress(encodedSeeds, program.programId);
@@ -31,6 +61,7 @@ const createGetters = <
 ) => {
   return {
     pda: (...args: Args) => getPDA([discriminator, ...args]),
+    // @ts-ignore
     val: async (...args) => account.fetch(await getPDA([discriminator, ...args])),
   };
 };

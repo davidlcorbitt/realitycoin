@@ -1,26 +1,30 @@
-import React from "react";
-import logo from "./logo.svg";
 import "./App.css";
+import { useEffect, useState } from "react";
+import { addValidator, airdrop, program, programState } from "./programClient";
+import * as anchor from "@project-serum/anchor";
 
-function App() {
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+
+const initialize = async () => {
+  console.log("initializing");
+  await airdrop(program.provider.wallet.publicKey);
+  console.log("adding");
+
+  // @ts-ignore
+  await addValidator(program.provider.wallet.payer, new anchor.BN(5000));
+  console.log("Validator added");
+};
+
+initialize();
+
+export default function App() {
+  const [value, setValue] = useState(null);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <div>
+        {value && value >= Number(0) ? <h2>{value}</h2> : <h3>Please create the counter.</h3>}
+      </div>
     </div>
   );
 }
-
-export default App;

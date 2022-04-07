@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::state::state::*;
 mod state;
 
-declare_id!("3nFoQdq56rXxQgLGQidrBa2Qfqj75c6NhmDCvdJqMEN9");
+declare_id!("9bP6UsBbWu1NQdco93V38CfhhNEracDuGA5VEhWpPXB8");
 
 // Once voting has started for a block, it has 4 hours to get enough votes to be
 // approved, otherwise it can be rejected.

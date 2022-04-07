@@ -1,7 +1,7 @@
 {
   "scripts": {
     "test": "anchor test",
-    "test:watch": "nodemon --watch tests --watch programs --watch app -e rs,ts --exec \"anchor test\"",
+    "test:watch": "nodemon --watch tests --watch programs --watch app/src/programClient -e rs,ts --exec \"anchor test\"",
     "run-locally": "scripts/run-locally.sh"
   },
   "dependencies": {

@@ -13,9 +13,10 @@ import {
   programState,
   proposeBlockForVoting,
   stakedValidator,
-} from "../app/program";
+} from "../app/src/programClient";
 
 chai.use(chaiAsPromised);
+anchor.setProvider(anchor.Provider.env());
 
 describe("realitycoin_consensus", async () => {
   const validators = Array(3)
@@ -23,10 +24,9 @@ describe("realitycoin_consensus", async () => {
     .map(() => anchor.web3.Keypair.generate());
 
   it("Initializes correctly", async () => {
-    const programStatePDA = await programState.pda();
     await program.rpc.initialize(new anchor.BN(5000), {
       accounts: {
-        programState: programStatePDA,
+        programState: await programState.pda(),
         owner: program.provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
       },
@@ -38,12 +38,10 @@ describe("realitycoin_consensus", async () => {
   });
 
   it("Can't be initialized twice", async () => {
-    const programStatePDA = await programState.pda();
-
     await expect(
       program.rpc.initialize(new anchor.BN(5000), {
         accounts: {
-          programState: programStatePDA,
+          programState: await programState.pda(),
           owner: program.provider.wallet.publicKey,
           systemProgram: SystemProgram.programId,
         },
