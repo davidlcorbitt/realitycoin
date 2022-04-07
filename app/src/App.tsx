@@ -1,9 +1,6 @@
-import "./App.css";
-import { useEffect, useState } from "react";
-import { addValidator, airdrop, program, programState } from "./programClient";
 import * as anchor from "@project-serum/anchor";
-
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+import "./App.css";
+import { addValidator, airdrop, program } from "./programClient";
 
 const initialize = async () => {
   console.log("initializing");
@@ -18,12 +15,10 @@ const initialize = async () => {
 initialize();
 
 export default function App() {
-  const [value, setValue] = useState(null);
-
   return (
     <div className="App">
       <div>
-        {value && value >= Number(0) ? <h2>{value}</h2> : <h3>Please create the counter.</h3>}
+        <h1>Hello World</h1>
       </div>
     </div>
   );
