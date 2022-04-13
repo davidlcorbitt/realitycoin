@@ -36,8 +36,6 @@ function renderHexagons(map: mapboxgl.Map) {
 }
 
 const MapView = () => {
-  const mapRef = useRef<mapboxgl.Map | null>();
-
   const setupMap = useCallback(({ target }: MapboxEvent) => {
     target.addSource(hexPerimeterSourceId, {
       type: "geojson",
@@ -81,16 +79,11 @@ const MapView = () => {
       mapStyle="mapbox://styles/mapbox/streets-v9"
       onMoveEnd={updateOverlays}
       onLoad={setupMap}
-      // @ts-expect-error
-      ref={mapRef}
     >
-      {mapRef.current && (
-        <GeocoderControl
-          mapboxAccessToken={process.env.REACT_APP_MAPBOX_ACCESS_TOKEN!}
-          position="top-left"
-          mapboxgl={mapRef.current}
-        />
-      )}
+      <GeocoderControl
+        accessToken={process.env.REACT_APP_MAPBOX_ACCESS_TOKEN!}
+        position="top-left"
+      />
     </MapGL>
   );
 };
