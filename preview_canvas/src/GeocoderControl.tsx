@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useControl, Marker, ControlPosition } from "react-map-gl";
 
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+import mapboxgl from "mapbox-gl";
 
-type GeocoderControlProps = {
+type GeocoderControlProps = MapboxGeocoder.GeocoderOptions & {
   mapboxAccessToken: string;
+  mapboxgl: mapboxgl.Map;
   origin?: string;
   zoom?: number;
   flyTo?: boolean | object;
@@ -42,7 +44,7 @@ type GeocoderControlProps = {
 
   position: ControlPosition;
 
-  onLoading?: (e: object) => void;
+  onLoading?: (...args: any) => void;
   onResults?: (e: object) => void;
   onResult?: (e: object) => void;
   onError?: (e: object) => void;
@@ -50,19 +52,18 @@ type GeocoderControlProps = {
 
 /* eslint-disable complexity,max-statements */
 export default function GeocoderControl(props: GeocoderControlProps) {
-  const [marker, setMarker] = useState(null);
+  const [marker, setMarker] = useState<any>(null);
 
   const geocoder = useControl<MapboxGeocoder>(
     () => {
-      // @ts-ignore
       const ctrl = new MapboxGeocoder({
         ...props,
         accessToken: props.mapboxAccessToken,
       });
-      ctrl.on("loading", props.onLoading);
-      ctrl.on("results", props.onResults);
+      props.onLoading && ctrl.on("loading", props.onLoading);
+      props.onResults && ctrl.on("results", props.onResults);
       ctrl.on("result", (evt) => {
-        props.onResult(evt);
+        props.onResult?.(evt);
 
         const { result } = evt;
         const location =
@@ -74,7 +75,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
           setMarker(null);
         }
       });
-      ctrl.on("error", props.onError);
+      props.onError && ctrl.on("error", props.onError);
       return ctrl;
     },
     {
@@ -82,6 +83,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     }
   );
 
+  // @ts-expect-error
   if (geocoder._map) {
     if (geocoder.getProximity() !== props.proximity && props.proximity !== undefined) {
       geocoder.setProximity(props.proximity);
@@ -96,40 +98,28 @@ export default function GeocoderControl(props: GeocoderControlProps) {
       geocoder.setZoom(props.zoom);
     }
     if (geocoder.getFlyTo() !== props.flyTo && props.flyTo !== undefined) {
-      geocoder.setFlyTo(props.zoom);
+      geocoder.setFlyTo(props.flyTo);
     }
     if (geocoder.getPlaceholder() !== props.placeholder && props.placeholder !== undefined) {
-      geocoder.setPlaceholder(props.zoom);
+      geocoder.setPlaceholder(props.placeholder);
     }
     if (geocoder.getCountries() !== props.countries && props.countries !== undefined) {
-      geocoder.setCountries(props.zoom);
+      geocoder.setCountries(props.countries);
     }
     if (geocoder.getTypes() !== props.types && props.types !== undefined) {
-      geocoder.setTypes(props.zoom);
+      geocoder.setTypes(props.types);
     }
     if (geocoder.getMinLength() !== props.minLength && props.minLength !== undefined) {
-      geocoder.setMinLength(props.zoom);
+      geocoder.setMinLength(props.minLength);
     }
     if (geocoder.getLimit() !== props.limit && props.limit !== undefined) {
-      geocoder.setLimit(props.zoom);
+      geocoder.setLimit(props.limit);
     }
     if (geocoder.getFilter() !== props.filter && props.filter !== undefined) {
-      geocoder.setFilter(props.zoom);
+      geocoder.setFilter(props.filter);
     }
     if (geocoder.getOrigin() !== props.origin && props.origin !== undefined) {
-      geocoder.setOrigin(props.zoom);
-    }
-    if (geocoder.getAutocomplete() !== props.autocomplete && props.autocomplete !== undefined) {
-      geocoder.setAutocomplete(props.zoom);
-    }
-    if (geocoder.getFuzzyMatch() !== props.fuzzyMatch && props.fuzzyMatch !== undefined) {
-      geocoder.setFuzzyMatch(props.zoom);
-    }
-    if (geocoder.getRouting() !== props.routing && props.routing !== undefined) {
-      geocoder.setRouting(props.zoom);
-    }
-    if (geocoder.getWorldview() !== props.worldview && props.worldview !== undefined) {
-      geocoder.setWorldview(props.zoom);
+      geocoder.setOrigin(props.origin);
     }
   }
   return marker;
