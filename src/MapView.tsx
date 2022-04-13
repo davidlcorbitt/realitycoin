@@ -4,35 +4,13 @@ import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import geojson2h3 from "geojson2h3";
 // import {polyfill} from "h3-js";
 import mapboxgl from "mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
-import React, { useEffect, useRef, useState } from "react";
-import Map from "react-map-gl";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import MapGL, { ViewStateChangeEvent } from "react-map-gl";
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
-// const config = new Configuration();
-// const axiosInstance = axios.create();
-// const baseUrl = 'http://localhost:8080';
-// const blocks = new BlocksApi(config, baseUrl, axiosInstance);
-// const maps = new MapsApi(config, baseUrl, axiosInstance);
-
-const headerStyles = {
-  padding: 20,
-  fontSize: 16,
-  background: "#34c3ff",
-  color: " #fff",
-};
-
-const iconStyles = {
-  width: 56,
-  height: 56,
-  padding: 18,
-  lineHeight: "56px",
-  textAlign: "center",
-};
-
 const MapView = () => {
-  const mapContainer = useRef(null);
-  const map = useRef<any>(null);
+  const map = useRef<MapGL>(null);
   const [lng, setLng] = useState(-122.005766);
   const [lat, setLat] = useState(37.585621);
   const [zoom, setZoom] = useState(15);
@@ -126,73 +104,70 @@ const MapView = () => {
     source.setData(geojson);
   }
 
-  useEffect(() => {
-    // set up map
-    if (map.current) return; // initialize map only once
-    map.current = new mapboxgl.Map({
-      // container: mapContainer.current,
-      container: "map",
-      style: "mapbox://styles/mapbox/streets-v11",
-      center: [lng, lat],
-      zoom: zoom,
-      // onload:
-    });
+  // useEffect(() => {
+  //   // set up map
+  //   if (map.current) return; // initialize map only once
+  //   map.current = new mapboxgl.Map({
+  //     // container: mapContainer.current,
+  //     container: "map",
+  //     style: "mapbox://styles/mapbox/streets-v11",
+  //     center: [lng, lat],
+  //     zoom: zoom,
+  //     // onload:
+  //   });
 
-    // add location bar
-    map.current.addControl(
-      new MapboxGeocoder({
-        accessToken: mapboxgl.accessToken,
-        mapboxgl: mapboxgl,
-      })
-    );
+  //   // add location bar
+  //   map.current.addControl(
+  //     new MapboxGeocoder({
+  //       accessToken: mapboxgl.accessToken,
+  //       mapboxgl: mapboxgl,
+  //     })
+  //   );
 
-    //add navigation
-    map.current.addControl(new mapboxgl.NavigationControl());
+  //   //add navigation
+  //   map.current.addControl(new mapboxgl.NavigationControl());
 
-    //   render hexagons
-    const renderAll = () => {
-      // get current map view bounds for creating hexagon math
-      const mapGeo = map.current.getBounds();
+  //   //   render hexagons
+  //   const renderAll = () => {
+  //     // get current map view bounds for creating hexagon math
+  //     const mapGeo = map.current.getBounds();
 
-      const mapPolygon = [
-        mapGeo.getNorthWest().toArray(),
-        mapGeo.getNorthEast().toArray(),
-        mapGeo.getSouthEast().toArray(),
-        mapGeo.getSouthWest().toArray(),
-      ];
+  //     const mapPolygon = [
+  //       mapGeo.getNorthWest().toArray(),
+  //       mapGeo.getNorthEast().toArray(),
+  //       mapGeo.getSouthEast().toArray(),
+  //       mapGeo.getSouthWest().toArray(),
+  //     ];
 
-      console.log({ mapPolygon });
-      console.log(map.current.getZoom().toFixed(2));
+  //     const polygon = {
+  //       type: "Feature",
+  //       geometry: {
+  //         type: "Polygon",
+  //         coordinates: [mapPolygon.concat([mapGeo.getNorthWest().toArray()])],
+  //       },
+  //     };
 
-      const polygon = {
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [mapPolygon.concat([mapGeo.getNorthWest().toArray()])],
-        },
-      };
+  //     const mapHexagons = geojson2h3.featureToH3Set(polygon, 11);
+  //     console.log("Finished math");
+  //     // render hexes
 
-      const mapHexagons = geojson2h3.featureToH3Set(polygon, 11);
-      console.log("Finished math");
-      // render hexes
+  //     renderPerimeter(map.current, mapHexagons);
+  //   };
 
-      renderPerimeter(map.current, mapHexagons);
-    };
+  //   map.current.on("load", function () {
+  //     renderAll();
+  //   });
 
-    map.current.on("load", function () {
-      renderAll();
-    });
+  //   map.current.on("move", () => {
+  //     renderAll();
+  //   });
 
-    map.current.on("move", () => {
-      renderAll();
-    });
-
-    map.current.on("click", "h3-hexes-layer", (e) => {
-      // console.log(e)
-      // console.log(e.features[0].properties)
-      handleOpen(e.features[0].properties.name);
-    });
-  });
+  //   map.current.on("click", "h3-hexes-layer", (e) => {
+  //     // console.log(e)
+  //     // console.log(e.features[0].properties)
+  //     handleOpen(e.features[0].properties.name);
+  //   });
+  // });
 
   useEffect(() => {
     if (!map.current) return; // wait for map to initialize
@@ -217,25 +192,45 @@ const MapView = () => {
     setH3_11_block(address);
   };
 
+  const renderOverlay = useCallback(
+    ({ target }: ViewStateChangeEvent) => {
+      const bounds = target.getBounds();
+      const mapPolygon = [
+        bounds.getNorthWest().toArray(),
+        bounds.getNorthEast().toArray(),
+        bounds.getSouthEast().toArray(),
+        bounds.getSouthWest().toArray(),
+      ];
+
+      const polygon = {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [mapPolygon.concat([bounds.getNorthWest().toArray()])],
+        },
+      };
+
+      const mapHexagons = geojson2h3.featureToH3Set(polygon, 11);
+
+      renderPerimeter(target, mapHexagons);
+    },
+    [renderPerimeter]
+  );
+
   return (
-    <div className="map-container">
-      <div className="sidebar">
-        Coordinates: {lat}, {lng}
-      </div>
-      <div ref={mapContainer} id="map" />
-      {/* <Drawer size={size} placement={placement} open={open} onClose={() => setOpen(false)}> */}
-      {/* <Drawer size={size} open={open} onClose={() => setOpen(false)}>
-        <Drawer.Header>
-          <Drawer.Title>Street Viewer</Drawer.Title>
-          <Drawer.Actions>
-            <button onClick={() => setOpen(false)}>View All</button>
-             <Button onClick={() => setOpen(false)} appearance="primary">
-              Confirm
-            </Button>
-          </Drawer.Actions>
-        </Drawer.Header>
-      </Drawer> */}
-    </div>
+    <MapGL
+      initialViewState={{
+        longitude: lng,
+        latitude: lat,
+        zoom: zoom,
+      }}
+      style={{ width: "100%", height: "100vh" }}
+      mapStyle="mapbox://styles/mapbox/streets-v9"
+      onMove={() => console.log("moved")}
+      onMoveEnd={renderOverlay}
+      onLoad={renderOverlay}
+      ref={map}
+    />
   );
 };
 
