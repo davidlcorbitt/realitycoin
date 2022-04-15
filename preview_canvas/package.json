@@ -20,6 +20,7 @@
     "@types/react-dom": "^17.0.9",
     "framer-motion": "^6",
     "geojson2h3": "^1.2.0",
+    "lodash": "^4.17.21",
     "mapbox-gl": "^2.8.0",
     "osmtogeojson": "^3.0.0-beta.4",
     "overpass-ts": "^4.3.8",

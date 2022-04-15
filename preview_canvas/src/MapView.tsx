@@ -3,31 +3,21 @@ import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import { bboxPolygon } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import geojson2h3 from "geojson2h3";
-import mapboxgl, { LngLatBounds, MapboxEvent } from "mapbox-gl";
+import { LngLatBounds } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import MapGL, { MapRef } from "react-map-gl";
+import React, { useEffect, useMemo, useState } from "react";
+import MapGL, { Layer, Source } from "react-map-gl";
 import { useDispatch } from "react-redux";
 import AreaSelector from "./AreaSelector";
 import GeocoderControl from "./GeocoderControl";
-import mapSlice, { updateAreaOfInterest } from "./state/mapSlice";
+import { updateAreaOfInterest } from "./state/mapSlice";
 import { useAppSelector } from "./state/store";
 
-const hexPerimeterSourceId = "h3-hex-perimeter";
-const hexPerimeterLayerId = `${hexPerimeterSourceId}-layer`;
-
-function renderHexagons(map: mapboxgl.Map, areaOfInterest: Feature<Polygon>) {
-  const mapHexagons = geojson2h3.featureToH3Set(areaOfInterest, 11);
-  const geojson = geojson2h3.h3SetToMultiPolygonFeature(mapHexagons);
-
-  (map.getSource(hexPerimeterSourceId) as mapboxgl.GeoJSONSource).setData(geojson);
-}
-
 const MapView = () => {
-  const mapRef = useRef<MapRef | null>(null);
   const [selectedArea, setSelectedArea] = useState<Feature<Polygon> | null>(null);
   const [visibleBounds, setVisibleBounds] = useState<LngLatBounds | null>(null);
   const mapState = useAppSelector((state) => state.map);
+  const settings = useAppSelector((state) => state.settings);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -47,39 +37,12 @@ const MapView = () => {
     );
   }, [dispatch, selectedArea, visibleBounds]);
 
-  const setupMap = useCallback(({ target }: MapboxEvent) => {
-    setVisibleBounds(target.getBounds());
+  const hexPerimeters = useMemo(() => {
+    if (!mapState.areaOfInterest || !settings.viewHexes) return null;
 
-    target.addSource(hexPerimeterSourceId, {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: [],
-      },
-    });
-    target.addLayer({
-      id: hexPerimeterLayerId,
-      source: hexPerimeterSourceId,
-      type: "line",
-      interactive: false,
-      paint: {
-        "line-width": 1,
-        "line-color": "#5DADE2",
-      },
-    });
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current?.getMap();
-    if (!mapState.areaOfInterestSize || !mapState.areaOfInterest || !map) return;
-
-    // Only show hexes if the selected area isn't too big for performance reasons.
-    const showHexes = mapState.areaOfInterestSize < 12000000;
-
-    map.setLayoutProperty(hexPerimeterLayerId, "visibility", showHexes ? "visible" : "none");
-
-    if (showHexes) renderHexagons(map, mapState.areaOfInterest);
-  }, [mapState.areaOfInterest, mapState.areaOfInterestSize, mapRef]);
+    const mapHexagons = geojson2h3.featureToH3Set(mapState.areaOfInterest, 11);
+    return geojson2h3.h3SetToMultiPolygonFeature(mapHexagons);
+  }, [mapState.areaOfInterest, settings.viewHexes]);
 
   return (
     <MapGL
@@ -91,9 +54,27 @@ const MapView = () => {
       style={{ width: "100%", height: "100%" }}
       mapStyle="mapbox://styles/mapbox/streets-v9"
       onMoveEnd={({ target }) => setVisibleBounds(target.getBounds())}
-      onLoad={setupMap}
-      ref={mapRef}
+      onLoad={({ target }) => setVisibleBounds(target.getBounds())}
     >
+      {hexPerimeters && (
+        <Source id="hexes" type="geojson" data={hexPerimeters}>
+          <Layer
+            type="line"
+            interactive={false}
+            id="hexes"
+            paint={{
+              "line-width": 1,
+              "line-color": "#5DADE2",
+            }}
+          />
+        </Source>
+      )}
+      {settings.viewMappableFeatures && mapState.aoiStreets && (
+        <Source id="streets" type="geojson" data={mapState.aoiStreets}>
+          <Layer type="line" id="streets" />
+        </Source>
+      )}
+
       <GeocoderControl
         accessToken={process.env.REACT_APP_MAPBOX_ACCESS_TOKEN!}
         position="top-left"

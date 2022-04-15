@@ -1,9 +1,10 @@
-import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import * as turf from "@turf/turf";
 import { Feature, FeatureCollection, LineString, Polygon } from "@turf/turf";
-import mapboxgl from "mapbox-gl";
 import osmtogeojson from "osmtogeojson";
 import { overpass } from "overpass-ts";
+import settingsSlice from "./settingsSlice";
+import { RootState } from "./store";
 
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
@@ -15,10 +16,14 @@ function overpassBbox(feature: turf.Feature<turf.Polygon>) {
 export const updateAreaOfInterest = createAsyncThunk(
   "map/updateAreaOfInterest",
   async (areaOfInterest: Feature<Polygon> | null, thunkAPI) => {
-    thunkAPI.dispatch(mapSlice.actions.setAreaOfInterest(areaOfInterest));
-    thunkAPI.dispatch(mapSlice.actions.setStreetLength(null));
+    thunkAPI.dispatch(mapSlice.actions.set({ areaOfInterest, aoiStreets: null }));
 
     if (!areaOfInterest) return;
+
+    const size = selectAreaOfInterestSize(thunkAPI.getState() as RootState);
+    if (size && size > 12000000) thunkAPI.dispatch(settingsSlice.actions.set({ viewHexes: false }));
+    if (size && size > 120000000)
+      thunkAPI.dispatch(settingsSlice.actions.set({ viewMappableFeatures: false }));
 
     const data = await (
       await overpass(
@@ -48,45 +53,51 @@ export const updateAreaOfInterest = createAsyncThunk(
       out;
             `,
         { endpoint: "https://overpass.kumi.systems/api/interpreter" }
-        // booleanCrosses
       )
     ).json();
-    const processed = (await osmtogeojson(data)) as FeatureCollection<LineString>;
+    const streets = (await osmtogeojson(data)) as FeatureCollection<LineString>;
 
-    thunkAPI.dispatch(
-      mapSlice.actions.setStreetLength(
-        processed.features.reduce((total, feature) => total + turf.length(feature), 0)
-      )
-    );
+    // streetLength: processed.features.reduce(
+    //   (total, feature) => total + turf.length(feature),
+    //   0
+    // ),
+
+    thunkAPI.dispatch(mapSlice.actions.set({ aoiStreets: streets }));
   }
 );
 
 type MapState = {
-  map: mapboxgl.Map | null;
   areaOfInterest: Feature<Polygon> | null;
-  areaOfInterestSize: number | null;
-  streetLength: number | null;
+  aoiStreets: FeatureCollection<LineString> | null;
+  aoiStreetLength: number | null;
 };
 
 const mapSlice = createSlice({
   name: "map",
   initialState: {
-    map: null,
     areaOfInterest: null,
-    areaOfInterestSize: null,
+    aoiStreets: null,
   } as MapState,
   reducers: {
-    setMap: (state, action: PayloadAction<MapState["map"]>) => {
-      state.map = action.payload;
-    },
-    setAreaOfInterest: (state, action: PayloadAction<MapState["areaOfInterest"]>) => {
-      state.areaOfInterest = action.payload;
-      state.areaOfInterestSize = action.payload ? turf.area(action.payload) : null;
-    },
-    setStreetLength: (state, action: PayloadAction<MapState["streetLength"]>) => {
-      state.streetLength = action.payload;
+    set: (state, action: PayloadAction<Partial<MapState>>) => {
+      Object.assign(state, action.payload);
     },
   },
 });
 
 export default mapSlice;
+
+const selectAreaOfInterest = (state: RootState) => state.map.areaOfInterest;
+export const selectAreaOfInterestSize = createSelector(selectAreaOfInterest, (aoi) =>
+  aoi ? turf.area(aoi) : null
+);
+
+export const selectCanViewHexes = createSelector(
+  selectAreaOfInterestSize,
+  (aoiSize) => aoiSize && aoiSize < 12000000
+);
+
+export const selectCanViewFeatures = createSelector(
+  selectAreaOfInterestSize,
+  (aoiSize) => aoiSize && aoiSize < 120000000
+);
