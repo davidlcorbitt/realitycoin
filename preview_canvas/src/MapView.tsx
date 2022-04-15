@@ -4,12 +4,12 @@ import type { Feature, Polygon } from "geojson";
 import geojson2h3 from "geojson2h3";
 import mapboxgl, { LngLatBounds, MapboxEvent } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// import {polyfill} from "h3-js";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import MapGL, { MapRef } from "react-map-gl";
+import { useDispatch } from "react-redux";
 import AreaSelector from "./AreaSelector";
 import GeocoderControl from "./GeocoderControl";
-import * as turf from "@turf/turf";
+import { mapSlice, useAppSelector } from "./state/store";
 
 const hexPerimeterSourceId = "h3-hex-perimeter";
 const hexPerimeterLayerId = `${hexPerimeterSourceId}-layer`;
@@ -25,30 +25,34 @@ const MapView = () => {
   const mapRef = useRef<MapRef | null>(null);
   const [selectedArea, setSelectedArea] = useState<Feature<Polygon> | null>(null);
   const [visibleBounds, setVisibleBounds] = useState<LngLatBounds | null>(null);
+  const mapState = useAppSelector((state) => state.map);
+  const dispatch = useDispatch();
 
-  const areaOfInterest = useMemo<Feature<Polygon> | null>(
-    () =>
-      selectedArea
-        ? selectedArea
-        : visibleBounds
-        ? {
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  visibleBounds.getNorthWest().toArray(),
-                  visibleBounds.getNorthEast().toArray(),
-                  visibleBounds.getSouthEast().toArray(),
-                  visibleBounds.getSouthWest().toArray(),
+  useEffect(() => {
+    dispatch(
+      mapSlice.actions.setAreaOfInterest(
+        selectedArea
+          ? selectedArea
+          : visibleBounds
+          ? {
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    visibleBounds.getNorthWest().toArray(),
+                    visibleBounds.getNorthEast().toArray(),
+                    visibleBounds.getSouthEast().toArray(),
+                    visibleBounds.getSouthWest().toArray(),
+                  ],
                 ],
-              ],
-            },
-            properties: {},
-          }
-        : null,
-    [selectedArea, visibleBounds]
-  );
+              },
+              properties: {},
+            }
+          : null
+      )
+    );
+  }, [dispatch, selectedArea, visibleBounds]);
 
   const setupMap = useCallback(({ target }: MapboxEvent) => {
     setVisibleBounds(target.getBounds());
@@ -74,14 +78,15 @@ const MapView = () => {
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
-    if (!areaOfInterest || !map) return;
+    if (!mapState.areaOfInterestSize || !mapState.areaOfInterest || !map) return;
 
     // Only show hexes if the selected area isn't too big for performance reasons.
-    const showHexes = turf.area(areaOfInterest) < 12000000;
+    const showHexes = mapState.areaOfInterestSize < 12000000;
+
     map.setLayoutProperty(hexPerimeterLayerId, "visibility", showHexes ? "visible" : "none");
 
-    if (showHexes) renderHexagons(map, areaOfInterest);
-  }, [areaOfInterest, mapRef]);
+    if (showHexes) renderHexagons(map, mapState.areaOfInterest);
+  }, [mapState.areaOfInterest, mapState.areaOfInterestSize, mapRef]);
 
   return (
     <MapGL
@@ -90,7 +95,7 @@ const MapView = () => {
         latitude: 37.585621,
         zoom: 15,
       }}
-      style={{ width: "100%", height: "100vh" }}
+      style={{ width: "100%", height: "100%" }}
       mapStyle="mapbox://styles/mapbox/streets-v9"
       onMoveEnd={({ target }) => setVisibleBounds(target.getBounds())}
       onLoad={setupMap}
