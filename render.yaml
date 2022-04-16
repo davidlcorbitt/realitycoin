@@ -1,0 +1,6 @@
+services:
+  - name: preview-canvas-web
+    type: web
+    env: static
+    buildCommand: cd preview_canvas && yarn install --frozen-lockfile && yarn build
+    staticPublishPath: ./preview_canvas/build

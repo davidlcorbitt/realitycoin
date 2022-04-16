@@ -38,7 +38,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "start:prod": "yarn build && yarn serve -s build"
   },
   "eslintConfig": {
     "extends": [
@@ -48,9 +49,9 @@
   },
   "browserslist": {
     "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
     ],
     "development": [
       "last 1 chrome version",
@@ -59,7 +60,8 @@
     ]
   },
   "devDependencies": {
-    "@types/mapbox__mapbox-gl-draw": "^1.2.3"
+    "@types/mapbox__mapbox-gl-draw": "^1.2.3",
+    "serve": "^13.0.2"
   },
   "resolutions": {
     "@types/react": "17.0.43"
