@@ -1,5 +1,6 @@
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import { bboxPolygon } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import geojson2h3 from "geojson2h3";
 import mapboxgl, { LngLatBounds, MapboxEvent } from "mapbox-gl";
@@ -9,7 +10,8 @@ import MapGL, { MapRef } from "react-map-gl";
 import { useDispatch } from "react-redux";
 import AreaSelector from "./AreaSelector";
 import GeocoderControl from "./GeocoderControl";
-import { mapSlice, useAppSelector } from "./state/store";
+import mapSlice, { updateAreaOfInterest } from "./state/mapSlice";
+import { useAppSelector } from "./state/store";
 
 const hexPerimeterSourceId = "h3-hex-perimeter";
 const hexPerimeterLayerId = `${hexPerimeterSourceId}-layer`;
@@ -30,25 +32,16 @@ const MapView = () => {
 
   useEffect(() => {
     dispatch(
-      mapSlice.actions.setAreaOfInterest(
+      updateAreaOfInterest(
         selectedArea
           ? selectedArea
           : visibleBounds
-          ? {
-              type: "Feature",
-              geometry: {
-                type: "Polygon",
-                coordinates: [
-                  [
-                    visibleBounds.getNorthWest().toArray(),
-                    visibleBounds.getNorthEast().toArray(),
-                    visibleBounds.getSouthEast().toArray(),
-                    visibleBounds.getSouthWest().toArray(),
-                  ],
-                ],
-              },
-              properties: {},
-            }
+          ? bboxPolygon([
+              visibleBounds.getEast(),
+              visibleBounds.getNorth(),
+              visibleBounds.getWest(),
+              visibleBounds.getSouth(),
+            ])
           : null
       )
     );

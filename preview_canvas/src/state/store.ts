@@ -1,32 +1,6 @@
-import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Feature, Polygon } from "@turf/turf";
-import mapboxgl from "mapbox-gl";
+import { configureStore } from "@reduxjs/toolkit";
 import { TypedUseSelectorHook, useSelector } from "react-redux";
-import * as turf from "@turf/turf";
-
-type MapState = {
-  map: mapboxgl.Map | null;
-  areaOfInterest: Feature<Polygon> | null;
-  areaOfInterestSize: number | null;
-};
-
-export const mapSlice = createSlice({
-  name: "map",
-  initialState: {
-    map: null,
-    areaOfInterest: null,
-    areaOfInterestSize: null,
-  } as MapState,
-  reducers: {
-    setMap: (state, action: PayloadAction<MapState["map"]>) => {
-      state.map = action.payload;
-    },
-    setAreaOfInterest: (state, action: PayloadAction<MapState["areaOfInterest"]>) => {
-      state.areaOfInterest = action.payload;
-      state.areaOfInterestSize = action.payload ? turf.area(action.payload) : null;
-    },
-  },
-});
+import mapSlice from "./mapSlice";
 
 const store = configureStore({
   reducer: {

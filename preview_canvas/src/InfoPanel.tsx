@@ -1,22 +1,27 @@
-import { Box, Table, Tbody, Td, Text, Th, Thead, Tr } from "@chakra-ui/react";
-import { useAppSelector } from "./state/store";
+import { Box, Table, Tbody, Td, Text, Th, Tr } from "@chakra-ui/react";
 import { default as NumberFormat } from "react-number-format";
+import { useAppSelector } from "./state/store";
 
 const HEX_AREA_SQ_KM = 0.0021496;
 
 export default function InfoPanel() {
-  const { areaOfInterestSize } = useAppSelector((state) => state.map);
+  const map = useAppSelector((state) => state.map);
 
   return (
-    <Box>
+    <Box minW={300}>
       <Table>
         <Tbody>
           <Tr>
             <Th>Area</Th>
             <Td>
-              {areaOfInterestSize && (
+              {map.areaOfInterestSize && (
                 <Text>
-                  {Math.round(areaOfInterestSize / 1000) / 1000} km<sup>2</sup>
+                  <NumberFormat
+                    value={Math.round(map.areaOfInterestSize / 1000) / 1000}
+                    displayType="text"
+                    thousandSeparator
+                  />{" "}
+                  km<sup>2</sup>
                 </Text>
               )}
             </Td>
@@ -25,10 +30,25 @@ export default function InfoPanel() {
             <Th>Total Hexes</Th>
             <Td>
               <NumberFormat
-                value={Math.ceil((areaOfInterestSize ?? 0) / (1000 * 1000) / HEX_AREA_SQ_KM)}
+                value={Math.ceil((map.areaOfInterestSize ?? 0) / (1000 * 1000) / HEX_AREA_SQ_KM)}
                 displayType="text"
                 thousandSeparator
               />
+            </Td>
+          </Tr>
+          <Tr>
+            <Th>Road Length</Th>
+            <Td>
+              {map.streetLength && (
+                <Text>
+                  <NumberFormat
+                    value={Math.round(map.streetLength)}
+                    displayType="text"
+                    thousandSeparator
+                  />{" "}
+                  km
+                </Text>
+              )}
             </Td>
           </Tr>
         </Tbody>
