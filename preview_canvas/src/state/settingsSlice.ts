@@ -9,7 +9,7 @@ const settingsSlice = createSlice({
   name: "settings",
   initialState: {
     viewHexes: false,
-    viewMappableFeatures: false,
+    viewMappableFeatures: true,
   } as SettingsState,
   reducers: {
     set: (state, action: PayloadAction<Partial<SettingsState>>) => {

@@ -27,10 +27,10 @@ const MapView = () => {
           ? selectedArea
           : visibleBounds
           ? bboxPolygon([
-              visibleBounds.getEast(),
-              visibleBounds.getNorth(),
               visibleBounds.getWest(),
               visibleBounds.getSouth(),
+              visibleBounds.getEast(),
+              visibleBounds.getNorth(),
             ])
           : null
       )

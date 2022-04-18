@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import * as turf from "@turf/turf";
-import { Feature, FeatureCollection, LineString, Polygon } from "@turf/turf";
+import { Feature, featureCollection, FeatureCollection, LineString, Polygon } from "@turf/turf";
 import osmtogeojson from "osmtogeojson";
 import { overpass } from "overpass-ts";
 import settingsSlice from "./settingsSlice";
@@ -55,14 +55,35 @@ export const updateAreaOfInterest = createAsyncThunk(
         { endpoint: "https://overpass.kumi.systems/api/interpreter" }
       )
     ).json();
-    const streets = (await osmtogeojson(data)) as FeatureCollection<LineString>;
+    const nearbyStreets = (await osmtogeojson(data)) as FeatureCollection<LineString>;
 
-    // streetLength: processed.features.reduce(
-    //   (total, feature) => total + turf.length(feature),
-    //   0
-    // ),
+    const streetSegmentsInAOI: Feature<LineString>[] = [];
+    nearbyStreets.features.forEach((street) => {
+      if (street.geometry.type !== "LineString") return;
 
-    thunkAPI.dispatch(mapSlice.actions.set({ aoiStreets: streets }));
+      let segments = turf.lineSplit(street, areaOfInterest);
+      const streetStartsInAOI = turf.booleanPointInPolygon(
+        turf.point(street.geometry.coordinates[0]),
+        areaOfInterest
+      );
+      if (segments.features.length === 0)
+        return streetStartsInAOI ? streetSegmentsInAOI.push(street) : null;
+
+      const oddPair = streetStartsInAOI ? 0 : 1;
+      segments.features.forEach((segment, i) => {
+        if ((i + oddPair) % 2 === 0) {
+          streetSegmentsInAOI.push(segment);
+        }
+      });
+    });
+
+    const aoiStreets = featureCollection(streetSegmentsInAOI);
+    thunkAPI.dispatch(
+      mapSlice.actions.set({
+        aoiStreets: aoiStreets,
+        aoiStreetLength: turf.length(aoiStreets),
+      })
+    );
   }
 );
 
@@ -72,12 +93,15 @@ type MapState = {
   aoiStreetLength: number | null;
 };
 
+const initialState: MapState = {
+  areaOfInterest: null,
+  aoiStreets: null,
+  aoiStreetLength: null,
+};
+
 const mapSlice = createSlice({
   name: "map",
-  initialState: {
-    areaOfInterest: null,
-    aoiStreets: null,
-  } as MapState,
+  initialState,
   reducers: {
     set: (state, action: PayloadAction<Partial<MapState>>) => {
       Object.assign(state, action.payload);
@@ -90,14 +114,4 @@ export default mapSlice;
 const selectAreaOfInterest = (state: RootState) => state.map.areaOfInterest;
 export const selectAreaOfInterestSize = createSelector(selectAreaOfInterest, (aoi) =>
   aoi ? turf.area(aoi) : null
-);
-
-export const selectCanViewHexes = createSelector(
-  selectAreaOfInterestSize,
-  (aoiSize) => aoiSize && aoiSize < 12000000
-);
-
-export const selectCanViewFeatures = createSelector(
-  selectAreaOfInterestSize,
-  (aoiSize) => aoiSize && aoiSize < 120000000
 );
