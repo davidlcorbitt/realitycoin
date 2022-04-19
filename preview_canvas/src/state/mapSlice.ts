@@ -5,34 +5,50 @@ import { featureToH3Set, h3SetToFeatureCollection } from "geojson2h3";
 import { geoToH3 } from "h3-js";
 import osmtogeojson from "osmtogeojson";
 import { overpass } from "overpass-ts";
+import sleep from "sleep-promise";
 import settingsSlice from "./settingsSlice";
 import { RootState } from "./store";
 
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
   const bbox = turf.bbox(feature);
-  // minX, minY, maxX, maxY -> south, west, north, east
   return `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`;
+}
+
+const DEBUG_UPDATE_AREA_OF_INTEREST = false;
+function debug(...args: any[]) {
+  if (DEBUG_UPDATE_AREA_OF_INTEREST) {
+    // tslint:disable-next-line: no-console
+    console.log(new Date(), ...args);
+  }
 }
 
 export const updateAreaOfInterest = createAsyncThunk(
   "map/updateAreaOfInterest",
   async (areaOfInterest: Feature<Polygon> | null, thunkAPI) => {
+    debug("starting");
     // TODO: abort existing requests if a new one comes in before the old one finishes.
     thunkAPI.dispatch(
       mapSlice.actions.set({
         areaOfInterest,
-        aoiStreets: null,
-        aoiStreetLength: null,
+        aoiHexes: null,
         mappableHexes: null,
       })
     );
 
     if (!areaOfInterest) return;
 
+    // Give React time to update the UI and load spinners
+    await sleep(500);
+
     const size = selectAreaOfInterestSize(thunkAPI.getState() as RootState);
     if (size && size > 12000000) thunkAPI.dispatch(settingsSlice.actions.set({ viewHexes: false }));
 
+    const aoiHexes = new Set(featureToH3Set(areaOfInterest, 11));
+    thunkAPI.dispatch(mapSlice.actions.set({ aoiHexes: Array.from(aoiHexes) }));
+    debug("hexes");
+
+    debug("fetching");
     const data = await (
       await overpass(
         `
@@ -63,9 +79,9 @@ export const updateAreaOfInterest = createAsyncThunk(
         { endpoint: "https://overpass.kumi.systems/api/interpreter" }
       )
     ).json();
+    debug("fetched");
     const nearbyStreets = (await osmtogeojson(data)) as FeatureCollection<LineString>;
-
-    const aoiHexes = new Set(selectHexagons(thunkAPI.getState() as RootState));
+    debug("nearby");
 
     const allStreetHexes = nearbyStreets.features
       .filter((street) => street.geometry.type === "LineString")
@@ -80,6 +96,8 @@ export const updateAreaOfInterest = createAsyncThunk(
         return streetPoints.map((point) => geoToH3(point[1], point[0], 11));
       });
 
+    debug("streetHexes");
+
     const mappableHexes = Array.from(new Set(allStreetHexes)).filter((hex) => aoiHexes.has(hex));
 
     thunkAPI.dispatch(mapSlice.actions.set({ mappableHexes }));
@@ -88,15 +106,13 @@ export const updateAreaOfInterest = createAsyncThunk(
 
 type MapState = {
   areaOfInterest: Feature<Polygon> | null;
-  aoiStreets: FeatureCollection<LineString> | null;
-  aoiStreetLength: number | null;
+  aoiHexes: string[] | null;
   mappableHexes: string[] | null;
 };
 
 const initialState: MapState = {
   areaOfInterest: null,
-  aoiStreets: null,
-  aoiStreetLength: null,
+  aoiHexes: null,
   mappableHexes: null,
 };
 
@@ -112,13 +128,13 @@ const mapSlice = createSlice({
 
 export default mapSlice;
 
-const selectAreaOfInterest = (state: RootState) => state.map.areaOfInterest;
-export const selectAreaOfInterestSize = createSelector(selectAreaOfInterest, (aoi) =>
-  aoi ? turf.area(aoi) : null
+export const selectAreaOfInterestSize = createSelector(
+  (state: RootState) => state.map.areaOfInterest,
+  (aoi) => (aoi ? turf.area(aoi) : null)
 );
 
 export const selectHexagons = createSelector(
-  selectAreaOfInterest,
+  (state: RootState) => state.map.areaOfInterest,
   (aoi) => aoi && featureToH3Set(aoi, 11)
 );
 
