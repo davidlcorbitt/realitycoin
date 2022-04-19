@@ -8,6 +8,8 @@ import { overpass } from "overpass-ts";
 import sleep from "sleep-promise";
 import settingsSlice from "./settingsSlice";
 import { RootState } from "./store";
+import queryString from "query-string";
+import { updateParam } from "./persist";
 
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
@@ -15,7 +17,7 @@ function overpassBbox(feature: turf.Feature<turf.Polygon>) {
   return `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`;
 }
 
-const DEBUG_UPDATE_AREA_OF_INTEREST = false;
+const DEBUG_UPDATE_AREA_OF_INTEREST = true;
 function debug(...args: any[]) {
   if (DEBUG_UPDATE_AREA_OF_INTEREST) {
     // tslint:disable-next-line: no-console
@@ -35,6 +37,8 @@ export const updateAreaOfInterest = createAsyncThunk(
         mappableHexes: null,
       })
     );
+
+    updateParam("aoi", JSON.stringify(areaOfInterest));
 
     if (!areaOfInterest) return;
 

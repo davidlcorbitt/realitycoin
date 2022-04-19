@@ -2,8 +2,9 @@ import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import { cloneDeep } from "lodash";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useMemo } from "react";
-import MapGL, { Layer, Source } from "react-map-gl";
+import { useCallback, useMemo } from "react";
+import MapGL, { Layer, Source, ViewStateChangeEvent } from "react-map-gl";
+import { useUrlSearchParams } from "use-url-search-params";
 import AreaSelector from "./AreaSelector";
 import GeocoderControl from "./GeocoderControl";
 import { selectHexPolygons } from "./state/mapSlice";
@@ -13,6 +14,18 @@ const MapView = () => {
   const mapState = useAppSelector((state) => state.map);
   const settings = useAppSelector((state) => state.settings);
   const selectedHexagons = useAppSelector(selectHexPolygons);
+  const [params, setParams] = useUrlSearchParams(
+    {
+      long: -122.005766,
+      lat: 37.585621,
+      zoom: 15,
+    },
+    {
+      long: parseFloat,
+      lat: parseFloat,
+      zoom: parseFloat,
+    }
+  );
 
   const hexSource = useMemo(() => {
     if (!settings.viewHexes || !selectedHexagons) return null;
@@ -31,13 +44,26 @@ const MapView = () => {
     return hexes;
   }, [settings.viewHexes, mapState.mappableHexes, selectedHexagons]);
 
+  const onMoveEnd = useCallback(
+    (e: ViewStateChangeEvent) => {
+      setParams({
+        ...params,
+        long: e.viewState.longitude,
+        lat: e.viewState.latitude,
+        zoom: e.viewState.zoom,
+      });
+    },
+    [params, setParams]
+  );
+
   return (
     <MapGL
       initialViewState={{
-        longitude: -122.005766,
-        latitude: 37.585621,
-        zoom: 15,
+        longitude: params["long"] as number,
+        latitude: params["lat"] as number,
+        zoom: params["zoom"] as number,
       }}
+      onMoveEnd={onMoveEnd}
       style={{ width: "100%", height: "100%" }}
       mapStyle="mapbox://styles/mapbox/streets-v9"
     >

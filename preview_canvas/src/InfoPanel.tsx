@@ -35,7 +35,7 @@ export default function InfoPanel() {
               <Fade in={!!areaOfInterestSize}>
                 <Text>
                   <NumberFormat
-                    value={Math.round(areaOfInterestSize ?? 0 / 1000) / 1000}
+                    value={Math.round((areaOfInterestSize ?? 0) / 1000) / 1000}
                     displayType="text"
                     thousandSeparator
                   />{" "}

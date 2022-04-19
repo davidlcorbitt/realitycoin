@@ -3,10 +3,12 @@ import MapboxDraw, {
   DrawModeChageEvent,
   DrawUpdateEvent,
 } from "@mapbox/mapbox-gl-draw";
+import { Feature, Polygon } from "@turf/turf";
 import { useEffect, useState } from "react";
 import type { ControlPosition } from "react-map-gl";
 import { useControl, useMap } from "react-map-gl";
 import { useDispatch } from "react-redux";
+import { useUrlSearchParams } from "use-url-search-params";
 import { updateAreaOfInterest } from "./state/mapSlice";
 import { useAppSelector } from "./state/store";
 
@@ -19,6 +21,8 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
   const areaOfInterest = useAppSelector((state) => state.map.areaOfInterest);
   const dispatch = useDispatch();
 
+  const [params] = useUrlSearchParams();
+
   const [control] = useState(
     new MapboxDraw({
       defaultMode: "draw_polygon",
@@ -29,6 +33,8 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
 
   useControl(() => control, { position });
 
+  // This effect ensures you can only have one drawn area at a time. If you hit
+  // the polygon button a second time, it clears your previous area.
   useEffect(() => {
     const currentMap = map.current;
     if (!currentMap) return;
@@ -48,12 +54,25 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
     };
   }, [map, control, areaOfInterest, dispatch]);
 
+  // If this is the initial render and we have an area of interest stored in the
+  // URL parameter, add it to the map.
+  useEffect(() => {
+    if (!params.aoi || params.aoi === "null") return;
+    const aoi = JSON.parse(params.aoi as string) as Feature<Polygon>;
+    control.add(aoi as Feature<Polygon>);
+    control.changeMode("simple_select");
+    console.log(control.getMode());
+    dispatch(updateAreaOfInterest(aoi));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Kick off new calculations every time we update the area of interest.
   useEffect(() => {
     const currentMap = map.current;
     if (!currentMap) return;
 
     const updateArea = (e: DrawUpdateEvent | DrawCreateEvent) =>
-      dispatch(updateAreaOfInterest(e.features[0]));
+      dispatch(updateAreaOfInterest(e.features[0] as Feature<Polygon>));
 
     currentMap.on("draw.update", updateArea);
     currentMap.on("draw.create", updateArea);
