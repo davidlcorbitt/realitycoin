@@ -1,7 +1,7 @@
 import { Box, Checkbox, Heading, Stack, Table, Tbody, Td, Text, Th, Tr } from "@chakra-ui/react";
 import { default as NumberFormat } from "react-number-format";
 import { useDispatch } from "react-redux";
-import { selectAreaOfInterestSize } from "./state/mapSlice";
+import mapSlice, { selectAreaOfInterestSize } from "./state/mapSlice";
 import settingsSlice from "./state/settingsSlice";
 import { useAppSelector } from "./state/store";
 
@@ -56,16 +56,6 @@ export default function InfoPanel() {
             </Td>
           </Tr>
           <Tr>
-            <Th>Total Hexes</Th>
-            <Td>
-              <NumberFormat
-                value={Math.ceil((areaOfInterestSize ?? 0) / (1000 * 1000) / HEX_AREA_SQ_KM)}
-                displayType="text"
-                thousandSeparator
-              />
-            </Td>
-          </Tr>
-          <Tr>
             <Th>Road Length</Th>
             <Td>
               {map.aoiStreetLength && (
@@ -77,6 +67,31 @@ export default function InfoPanel() {
                   />{" "}
                   km
                 </Text>
+              )}
+            </Td>
+          </Tr>
+          <Tr>
+            <Th>Total Hexes</Th>
+            <Td>
+              {areaOfInterestSize && (
+                <NumberFormat
+                  value={Math.ceil((areaOfInterestSize ?? 0) / (1000 * 1000) / HEX_AREA_SQ_KM)}
+                  displayType="text"
+                  thousandSeparator
+                />
+              )}
+            </Td>
+          </Tr>
+          <Tr>
+            <Th>Mappable Hexes</Th>
+
+            <Td>
+              {map.mappableHexes && (
+                <NumberFormat
+                  value={map.mappableHexes?.length}
+                  displayType="text"
+                  thousandSeparator
+                />
               )}
             </Td>
           </Tr>
