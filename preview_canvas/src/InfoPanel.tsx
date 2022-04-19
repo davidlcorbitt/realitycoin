@@ -1,15 +1,14 @@
 import { Box, Checkbox, Heading, Stack, Table, Tbody, Td, Text, Th, Tr } from "@chakra-ui/react";
 import { default as NumberFormat } from "react-number-format";
 import { useDispatch } from "react-redux";
-import mapSlice, { selectAreaOfInterestSize } from "./state/mapSlice";
+import { selectAreaOfInterestSize, selectHexPolygons } from "./state/mapSlice";
 import settingsSlice from "./state/settingsSlice";
 import { useAppSelector } from "./state/store";
-
-const HEX_AREA_SQ_KM = 0.0021496;
 
 export default function InfoPanel() {
   const map = useAppSelector((state) => state.map);
   const settings = useAppSelector((state) => state.settings);
+  const selectedHexagons = useAppSelector(selectHexPolygons);
   const areaOfInterestSize = useAppSelector(selectAreaOfInterestSize);
   const dispatch = useDispatch();
 
@@ -24,14 +23,6 @@ export default function InfoPanel() {
           onChange={(e) => dispatch(settingsSlice.actions.set({ viewHexes: e.target.checked }))}
         >
           Hexes
-        </Checkbox>
-        <Checkbox
-          isChecked={settings.viewMappableFeatures}
-          onChange={(e) =>
-            dispatch(settingsSlice.actions.set({ viewMappableFeatures: e.target.checked }))
-          }
-        >
-          Mappable Features
         </Checkbox>
       </Stack>
 
@@ -56,26 +47,11 @@ export default function InfoPanel() {
             </Td>
           </Tr>
           <Tr>
-            <Th>Road Length</Th>
-            <Td>
-              {map.aoiStreetLength && (
-                <Text>
-                  <NumberFormat
-                    value={Math.round(map.aoiStreetLength)}
-                    displayType="text"
-                    thousandSeparator
-                  />{" "}
-                  km
-                </Text>
-              )}
-            </Td>
-          </Tr>
-          <Tr>
             <Th>Total Hexes</Th>
             <Td>
-              {areaOfInterestSize && (
+              {selectedHexagons && (
                 <NumberFormat
-                  value={Math.ceil((areaOfInterestSize ?? 0) / (1000 * 1000) / HEX_AREA_SQ_KM)}
+                  value={selectedHexagons.features.length}
                   displayType="text"
                   thousandSeparator
                 />

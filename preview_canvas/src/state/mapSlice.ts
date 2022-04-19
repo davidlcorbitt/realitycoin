@@ -1,18 +1,12 @@
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import * as turf from "@turf/turf";
-import {
-  Feature,
-  featureCollection,
-  FeatureCollection,
-  LineString,
-  MultiLineString,
-  Polygon,
-} from "@turf/turf";
+import { Feature, FeatureCollection, LineString, Polygon } from "@turf/turf";
+import { featureToH3Set, h3SetToFeatureCollection } from "geojson2h3";
+import { geoToH3 } from "h3-js";
 import osmtogeojson from "osmtogeojson";
 import { overpass } from "overpass-ts";
 import settingsSlice from "./settingsSlice";
 import { RootState } from "./store";
-import geojson2h3, { h3SetToFeatureCollection } from "geojson2h3";
 
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
@@ -38,8 +32,6 @@ export const updateAreaOfInterest = createAsyncThunk(
 
     const size = selectAreaOfInterestSize(thunkAPI.getState() as RootState);
     if (size && size > 12000000) thunkAPI.dispatch(settingsSlice.actions.set({ viewHexes: false }));
-    if (size && size > 100000000)
-      thunkAPI.dispatch(settingsSlice.actions.set({ viewMappableFeatures: false }));
 
     const data = await (
       await overpass(
@@ -71,50 +63,26 @@ export const updateAreaOfInterest = createAsyncThunk(
         { endpoint: "https://overpass.kumi.systems/api/interpreter" }
       )
     ).json();
-    console.log("have data");
     const nearbyStreets = (await osmtogeojson(data)) as FeatureCollection<LineString>;
-    console.log("converted");
 
-    const streetSegmentsInAOI: Feature<LineString>[] = [];
-    nearbyStreets.features.forEach((street) => {
-      if (street.geometry.type !== "LineString") return;
+    const aoiHexes = new Set(selectHexagons(thunkAPI.getState() as RootState));
 
-      let segments = turf.lineSplit(street, areaOfInterest);
-      const streetStartsInAOI = turf.booleanPointInPolygon(
-        turf.point(street.geometry.coordinates[0]),
-        areaOfInterest
-      );
-      if (segments.features.length === 0)
-        return streetStartsInAOI ? streetSegmentsInAOI.push(street) : null;
+    const allStreetHexes = nearbyStreets.features
+      .filter((street) => street.geometry.type === "LineString")
+      .flatMap((street) => {
+        // Split each street into 20-meter chunks. We'll use the coordinates of
+        // the endpoint of each chunk to find (approximately) all the hexes it
+        // passes through.
+        let segments = turf.lineChunk(street, 0.02);
 
-      const oddPair = streetStartsInAOI ? 0 : 1;
-      segments.features.forEach((segment, i) => {
-        if ((i + oddPair) % 2 === 0) {
-          streetSegmentsInAOI.push(segment);
-        }
+        const streetPoints = segments.features.map((segment) => segment.geometry.coordinates[0]);
+        streetPoints.push(street.geometry.coordinates.slice(-1)[0]);
+        return streetPoints.map((point) => geoToH3(point[1], point[0], 11));
       });
-    });
-    console.log("segmeted streets");
 
-    const aoiStreets = featureCollection(streetSegmentsInAOI);
-    thunkAPI.dispatch(
-      mapSlice.actions.set({
-        aoiStreets: aoiStreets,
-        aoiStreetLength: turf.length(aoiStreets),
-      })
-    );
+    const mappableHexes = Array.from(new Set(allStreetHexes)).filter((hex) => aoiHexes.has(hex));
 
-    const hexes = selectHexPolygons(thunkAPI.getState() as RootState);
-    console.log("got hexes");
-
-    const mappableHexes = hexes?.features
-      .filter((hex, i) => {
-        return aoiStreets.features.some((street) => turf.booleanCrosses(hex, street));
-      })
-      .map((hex) => hex.id as string);
-    console.log("calculated mappable hexes");
     thunkAPI.dispatch(mapSlice.actions.set({ mappableHexes }));
-    console.log("dispatched mappable hexes");
   }
 );
 
@@ -151,7 +119,7 @@ export const selectAreaOfInterestSize = createSelector(selectAreaOfInterest, (ao
 
 export const selectHexagons = createSelector(
   selectAreaOfInterest,
-  (aoi) => aoi && geojson2h3.featureToH3Set(aoi, 11)
+  (aoi) => aoi && featureToH3Set(aoi, 11)
 );
 
 export const selectHexPolygons = createSelector(

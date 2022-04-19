@@ -1,6 +1,8 @@
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
+import { cloneDeep } from "lodash";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useMemo } from "react";
 import MapGL, { Layer, Source } from "react-map-gl";
 import AreaSelector from "./AreaSelector";
 import GeocoderControl from "./GeocoderControl";
@@ -10,7 +12,24 @@ import { useAppSelector } from "./state/store";
 const MapView = () => {
   const mapState = useAppSelector((state) => state.map);
   const settings = useAppSelector((state) => state.settings);
-  const hexPolygons = useAppSelector(selectHexPolygons);
+  const selectedHexagons = useAppSelector(selectHexPolygons);
+
+  const hexSource = useMemo(() => {
+    if (!settings.viewHexes || !selectedHexagons) return null;
+
+    const mappableHexes = new Set(mapState.mappableHexes);
+
+    const hexes = cloneDeep(selectedHexagons);
+    hexes.features.forEach((hex) => {
+      let color = "rgba(0, 0, 0, 0)";
+      if (mappableHexes.has(hex.id as string)) {
+        color = "rgba(0,100,0,0.5)";
+      }
+      // @ts-expect-error
+      hex.properties["fill"] = color;
+    });
+    return hexes;
+  }, [settings.viewHexes, mapState.mappableHexes, selectedHexagons]);
 
   return (
     <MapGL
@@ -22,22 +41,17 @@ const MapView = () => {
       style={{ width: "100%", height: "100%" }}
       mapStyle="mapbox://styles/mapbox/streets-v9"
     >
-      {hexPolygons && settings.viewHexes && (
-        <Source id="hexes" type="geojson" data={hexPolygons}>
+      {hexSource && (
+        <Source id="hexes" type="geojson" data={hexSource}>
           <Layer
-            type="line"
+            type="fill"
             interactive={false}
             id="hexes"
             paint={{
-              "line-width": 1,
-              "line-color": "#5DADE2",
+              "fill-outline-color": "#5DADE2",
+              "fill-color": ["get", "fill"],
             }}
           />
-        </Source>
-      )}
-      {settings.viewMappableFeatures && mapState.aoiStreets && (
-        <Source id="streets" type="geojson" data={mapState.aoiStreets}>
-          <Layer type="line" id="streets" />
         </Source>
       )}
 

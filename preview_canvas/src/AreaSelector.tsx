@@ -1,4 +1,8 @@
-import MapboxDraw, { DrawModeChageEvent } from "@mapbox/mapbox-gl-draw";
+import MapboxDraw, {
+  DrawCreateEvent,
+  DrawModeChageEvent,
+  DrawUpdateEvent,
+} from "@mapbox/mapbox-gl-draw";
 import { useEffect, useState } from "react";
 import type { ControlPosition } from "react-map-gl";
 import { useControl, useMap } from "react-map-gl";
@@ -45,7 +49,19 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
   }, [map, control, areaOfInterest, dispatch]);
 
   useEffect(() => {
-    map.current?.on("draw.create", (e) => dispatch(updateAreaOfInterest(e.features[0])));
+    const currentMap = map.current;
+    if (!currentMap) return;
+
+    const updateArea = (e: DrawUpdateEvent | DrawCreateEvent) =>
+      dispatch(updateAreaOfInterest(e.features[0]));
+
+    currentMap.on("draw.update", updateArea);
+    currentMap.on("draw.create", updateArea);
+
+    return () => {
+      currentMap.off("draw.update", updateArea);
+      currentMap.off("draw.create", updateArea);
+    };
   }, [dispatch, map]);
 
   return null;
