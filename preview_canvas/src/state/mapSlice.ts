@@ -1,7 +1,8 @@
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import { createAsyncThunk, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import * as turf from "@turf/turf";
 import { Feature, Polygon } from "@turf/turf";
-import { featureToH3Set, h3SetToFeatureCollection } from "geojson2h3";
+import { h3SetToFeatureCollection } from "geojson2h3";
 import { updateParam } from "./persist";
 import recalculateStats from "./recalculateStats";
 import { RootState } from "./store";
@@ -23,12 +24,14 @@ type MapState = {
   areaOfInterest: Feature<Polygon> | null;
   aoiHexes: string[] | null;
   mappableHexes: string[] | null;
+  drawMode: MapboxDraw.DrawMode;
 };
 
 const initialState: MapState = {
   areaOfInterest: null,
   aoiHexes: null,
   mappableHexes: null,
+  drawMode: "simple_select",
 };
 
 const mapSlice = createSlice({

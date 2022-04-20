@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import type { ControlPosition } from "react-map-gl";
 import { useControl, useMap } from "react-map-gl";
 import { useDispatch } from "react-redux";
-import { setAreaOfInterest } from "./state/mapSlice";
+import mapSlice, { setAreaOfInterest } from "./state/mapSlice";
 import { useAppSelector } from "./state/store";
 
 type AreaSelectorProps = {
@@ -18,11 +18,12 @@ type AreaSelectorProps = {
 export default function AreaSelector({ position }: AreaSelectorProps) {
   const map = useMap();
   const areaOfInterest = useAppSelector((state) => state.map.areaOfInterest);
+  const mapState = useAppSelector((state) => state.map);
   const dispatch = useDispatch();
 
   const [control] = useState(
     new MapboxDraw({
-      defaultMode: "draw_polygon",
+      defaultMode: "simple_select",
       displayControlsDefault: false,
     })
   );
@@ -35,7 +36,8 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
     const currentMap = map.current;
     if (!currentMap) return;
 
-    const clearExistingArea = (e: DrawModeChageEvent) => {
+    const syncModeChange = (e: DrawModeChageEvent) => {
+      dispatch(mapSlice.actions.set({ drawMode: e.mode }));
       console.log("clearing existing area");
       // If you hit the polygon button again, clear the existing selected area.
       // We only support one selected area at a time.
@@ -45,13 +47,13 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
       }
     };
 
-    currentMap?.on("draw.modechange", clearExistingArea);
+    currentMap?.on("draw.modechange", syncModeChange);
     return () => {
-      currentMap?.off("draw.modechange", clearExistingArea);
+      currentMap?.off("draw.modechange", syncModeChange);
     };
   }, [map, control, areaOfInterest, dispatch]);
 
-  // Keep the AOI in state in sync with the AOI drawn on the map
+  // Sync AOI with the drawing control.
   useEffect(() => {
     control
       .getAll()
@@ -65,6 +67,14 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
       control.changeMode("draw_polygon");
     }
   }, [areaOfInterest, control]);
+
+  // Sync the drawing mode with the drawing control.
+  useEffect(() => {
+    if (control.getMode() !== mapState.drawMode) {
+      // @ts-expect-error
+      control.changeMode(mapState.drawMode);
+    }
+  }, [mapState.drawMode, control]);
 
   // Kick off new calculations every time we update the area of interest.
   useEffect(() => {

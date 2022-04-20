@@ -15,10 +15,10 @@ import {
   Th,
   Tr,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { default as NumberFormat } from "react-number-format";
 import { useDispatch } from "react-redux";
-import { selectAreaOfInterestSize, setAreaOfInterest } from "./state/mapSlice";
+import mapSlice, { selectAreaOfInterestSize, setAreaOfInterest } from "./state/mapSlice";
 import settingsSlice, { setOverpassQuery } from "./state/settingsSlice";
 import { useAppSelector } from "./state/store";
 
@@ -30,13 +30,14 @@ export default function InfoPanel() {
 
   const [draftQuery, setDraftQuery] = useState(settings.overpassQuery);
 
+  const selectNewArea = useCallback(() => {
+    dispatch(setAreaOfInterest(null));
+    dispatch(mapSlice.actions.set({ drawMode: "draw_polygon" }));
+  }, [dispatch]);
+
   return (
     <Stack w={300} h="100vh" p={4} spacing={4}>
-      <Button
-        colorScheme="blue"
-        onClick={() => dispatch(setAreaOfInterest(null))}
-        disabled={map.areaOfInterest == null}
-      >
+      <Button colorScheme="blue" onClick={selectNewArea}>
         Select New Area
       </Button>
 
@@ -96,7 +97,7 @@ export default function InfoPanel() {
         Show hexes
       </Checkbox>
       <FormControl flex="1" display="flex" flexDir="column">
-        <FormLabel>Overpass Query</FormLabel>
+        <FormLabel>Mappable Features Query</FormLabel>
         <Textarea value={draftQuery} onChange={(e) => setDraftQuery(e.target.value)} flex="1" />
       </FormControl>
       <Button
