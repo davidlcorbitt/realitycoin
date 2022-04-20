@@ -10,16 +10,18 @@ import mapSlice, { selectAreaOfInterestSize } from "./mapSlice";
 import settingsSlice from "./settingsSlice";
 import { RootState } from "./store";
 
+// From https://h3geo.org/docs/core-library/restable/
+const HEX_EDGE_LENGTH = 0.024910561;
+
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
   const bbox = turf.bbox(feature);
   return `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`;
 }
 
-const DEBUG_RECALCULATE_STATS = true;
+const DEBUG_RECALCULATE_STATS = process.env.DEBUG_RECALCULATE_STATS === "true";
 function debug(...args: any[]) {
   if (DEBUG_RECALCULATE_STATS) {
-    // tslint:disable-next-line: no-console
     console.log(new Date(), ...args);
   }
 }
@@ -27,9 +29,14 @@ function debug(...args: any[]) {
 const recalculateStats = createAsyncThunk<void, never, { state: RootState }>(
   "map/recalculateStats",
   async (_, { dispatch, getState }) => {
-    // TODO: abort existing requests if a new one comes in before the old one finishes.
-
     debug("Begin recalculateStats");
+
+    dispatch(
+      mapSlice.actions.set({
+        aoiHexes: null,
+        mappableHexes: null,
+      })
+    );
 
     const { areaOfInterest } = getState().map;
 
@@ -45,7 +52,9 @@ const recalculateStats = createAsyncThunk<void, never, { state: RootState }>(
     if (size && size > 12000000) dispatch(settingsSlice.actions.set({ viewHexes: false }));
 
     debug("Generating set of hexes in AOI");
-    const aoiHexes = new Set(featureToH3Set(areaOfInterest, 11));
+    // Get a slightly larger polygon so we include hexes that are only partially inside the AOI.
+    const expandedAOI = turf.buffer(areaOfInterest, HEX_EDGE_LENGTH);
+    const aoiHexes = new Set(featureToH3Set(expandedAOI, 11));
     dispatch(mapSlice.actions.set({ aoiHexes: Array.from(aoiHexes) }));
 
     debug("Fetching OSM data");

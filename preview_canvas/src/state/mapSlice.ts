@@ -11,13 +11,8 @@ export const setAreaOfInterest = createAsyncThunk<
   Feature<Polygon> | null,
   { state: RootState }
 >("map/setAreaOfInterest", async (aoi, { dispatch }) => {
-  dispatch(
-    mapSlice.actions.set({
-      areaOfInterest: aoi,
-      aoiHexes: null,
-      mappableHexes: null,
-    })
-  );
+  dispatch(mapSlice.actions.set({ areaOfInterest: aoi }));
+
   // Sync the current AOI to the URL params
   updateParam("aoi", JSON.stringify(aoi));
 
@@ -53,12 +48,7 @@ export const selectAreaOfInterestSize = createSelector(
   (aoi) => (aoi ? turf.area(aoi) : null)
 );
 
-export const selectHexagons = createSelector(
-  (state: RootState) => state.map.areaOfInterest,
-  (aoi) => aoi && featureToH3Set(aoi, 11)
-);
-
 export const selectHexPolygons = createSelector(
-  selectHexagons,
+  (state: RootState) => state.map.aoiHexes,
   (hexagons) => hexagons && h3SetToFeatureCollection(hexagons)
 );
