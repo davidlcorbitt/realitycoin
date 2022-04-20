@@ -1,22 +1,25 @@
 import {
-  Box,
-  Center,
+  Button,
   Checkbox,
   CircularProgress,
   Fade,
+  FormControl,
+  FormLabel,
   Heading,
   Stack,
   Table,
   Tbody,
   Td,
   Text,
+  Textarea,
   Th,
   Tr,
 } from "@chakra-ui/react";
+import { useCallback, useState } from "react";
 import { default as NumberFormat } from "react-number-format";
 import { useDispatch } from "react-redux";
-import { selectAreaOfInterestSize, selectHexPolygons } from "./state/mapSlice";
-import settingsSlice from "./state/settingsSlice";
+import { selectAreaOfInterestSize } from "./state/mapSlice";
+import settingsSlice, { setOverpassQuery } from "./state/settingsSlice";
 import { useAppSelector } from "./state/store";
 
 export default function InfoPanel() {
@@ -25,6 +28,13 @@ export default function InfoPanel() {
   const areaOfInterestSize = useAppSelector(selectAreaOfInterestSize);
   const dispatch = useDispatch();
 
+  const [draftQuery, setDraftQuery] = useState(settings.overpassQuery);
+
+  const updateQuery = useCallback(
+    () => dispatch(setOverpassQuery(draftQuery)),
+    [dispatch, draftQuery]
+  );
+
   return (
     <Stack w={300} p={4} spacing={4}>
       <Table sx={{ tr: { height: "60px" } }} variant="simple">
@@ -32,16 +42,20 @@ export default function InfoPanel() {
           <Tr>
             <Th w={70}>Area</Th>
             <Td w="auto">
-              <Fade in={!!areaOfInterestSize}>
-                <Text>
-                  <NumberFormat
-                    value={Math.round((areaOfInterestSize ?? 0) / 1000) / 1000}
-                    displayType="text"
-                    thousandSeparator
-                  />{" "}
-                  km<sup>2</sup>
-                </Text>
-              </Fade>
+              <Text>
+                {map.areaOfInterest ? (
+                  <Fade in={!!areaOfInterestSize}>
+                    <NumberFormat
+                      value={Math.round((areaOfInterestSize ?? 0) / 1000) / 1000}
+                      displayType="text"
+                      thousandSeparator
+                    />{" "}
+                    km<sup>2</sup>
+                  </Fade>
+                ) : (
+                  <Text as="i">No area selected</Text>
+                )}
+              </Text>
             </Td>
           </Tr>
           <Tr>
@@ -72,13 +86,28 @@ export default function InfoPanel() {
       <Heading size="md" textAlign="center">
         Options
       </Heading>
+      <Checkbox
+        isChecked={settings.viewHexes}
+        onChange={(e) => dispatch(settingsSlice.actions.set({ viewHexes: e.target.checked }))}
+      >
+        Show hexes
+      </Checkbox>
       <Stack>
-        <Checkbox
-          isChecked={settings.viewHexes}
-          onChange={(e) => dispatch(settingsSlice.actions.set({ viewHexes: e.target.checked }))}
+        <FormControl>
+          <FormLabel>Overpass Query</FormLabel>
+          <Textarea
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
+            minH="400px"
+          />
+        </FormControl>
+        <Button
+          colorScheme="teal"
+          disabled={draftQuery === settings.overpassQuery}
+          onClick={updateQuery}
         >
-          Show hexes
-        </Checkbox>
+          Update Query
+        </Button>
       </Stack>
     </Stack>
   );

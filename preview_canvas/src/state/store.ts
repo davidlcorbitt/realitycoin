@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { TypedUseSelectorHook, useSelector } from "react-redux";
 import queryString from "query-string";
-import mapSlice, { updateAreaOfInterest } from "./mapSlice";
+import { TypedUseSelectorHook, useSelector } from "react-redux";
+import mapSlice from "./mapSlice";
 import settingsSlice from "./settingsSlice";
 
 const store = configureStore({
@@ -16,10 +16,10 @@ const store = configureStore({
 export default store;
 
 export const initializeStoreFromUrlParams = async () => {
-  const { viewHexes } = queryString.parse(window.location.search);
-  if (viewHexes) {
-    store.dispatch(settingsSlice.actions.set({ viewHexes: viewHexes === "true" }));
-  }
+  const { viewHexes, overpassQuery } = queryString.parse(window.location.search);
+  if (viewHexes) store.dispatch(settingsSlice.actions.set({ viewHexes: viewHexes === "true" }));
+  if (overpassQuery)
+    store.dispatch(settingsSlice.actions.set({ overpassQuery: overpassQuery as string }));
 };
 
 initializeStoreFromUrlParams();

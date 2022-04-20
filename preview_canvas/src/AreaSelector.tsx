@@ -9,7 +9,7 @@ import type { ControlPosition } from "react-map-gl";
 import { useControl, useMap } from "react-map-gl";
 import { useDispatch } from "react-redux";
 import { useUrlSearchParams } from "use-url-search-params";
-import { updateAreaOfInterest } from "./state/mapSlice";
+import { setAreaOfInterest } from "./state/mapSlice";
 import { useAppSelector } from "./state/store";
 
 type AreaSelectorProps = {
@@ -44,7 +44,7 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
       // selected area at a time.
       if (e.mode === "draw_polygon" && areaOfInterest) {
         control.delete(areaOfInterest.id as string);
-        dispatch(updateAreaOfInterest(null));
+        dispatch(setAreaOfInterest(null));
       }
     };
 
@@ -62,7 +62,7 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
     control.add(aoi as Feature<Polygon>);
     control.changeMode("simple_select");
     console.log(control.getMode());
-    dispatch(updateAreaOfInterest(aoi));
+    dispatch(setAreaOfInterest(aoi));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -72,7 +72,7 @@ export default function AreaSelector({ position }: AreaSelectorProps) {
     if (!currentMap) return;
 
     const updateArea = (e: DrawUpdateEvent | DrawCreateEvent) =>
-      dispatch(updateAreaOfInterest(e.features[0] as Feature<Polygon>));
+      dispatch(setAreaOfInterest(e.features[0] as Feature<Polygon>));
 
     currentMap.on("draw.update", updateArea);
     currentMap.on("draw.create", updateArea);
