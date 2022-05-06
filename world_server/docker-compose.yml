@@ -1,0 +1,61 @@
+# Docker Compose file for local development.
+# Adapted from https://blog.logrocket.com/containerized-development-nestjs-docker/
+
+version: '3.8'
+
+services:
+  wserver:
+    container_name: wserver
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - 8001:8001
+      - 9229:9229
+    command: yarn run start:dev
+    env_file:
+      - .env
+    networks:
+      - ws-dev
+    depends_on:
+      - postgres
+  postgres:
+    container_name: postgres
+    image: postgis/postgis:14-3.2
+    networks:
+      - ws-dev
+    environment:
+      POSTGRES_PASSWORD: world_server
+      POSTGRES_USER: world_server
+      POSTGRES_DB: world_server
+      PG_DATA: /var/lib/postgresql/data
+    ports:
+      - 8010:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    volumes:
+      - pgadmin_data:/root/.pgadmin
+    env_file:
+      - .env
+    ports:
+      - 8011:80
+    networks:
+      - ws-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    depends_on:
+      - postgres
+
+networks:
+  ws-dev:
+volumes:
+  pgdata:
+  pgadmin_data:
