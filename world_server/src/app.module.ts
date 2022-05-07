@@ -6,7 +6,8 @@ import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import config from './mikro-orm.config';
+import { CollectionsModule } from './collections/collections.module';
+import config from '../mikro-orm.config';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import config from './mikro-orm.config';
     }),
     MikroOrmModule.forRoot(config),
     UsersModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

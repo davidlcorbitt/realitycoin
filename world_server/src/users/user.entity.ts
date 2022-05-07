@@ -3,10 +3,10 @@ import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 @Entity()
 export class User {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
-  uuid!: string;
+  id!: string;
 
   @Property()
-  email?: string;
+  email!: string;
 
   @Property()
   displayName?: string;

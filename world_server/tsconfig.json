@@ -17,5 +17,8 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": false
+  },
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
   }
 }
