@@ -20,6 +20,8 @@ services:
       - .env
     networks:
       - ws-dev
+    environment:
+      DATABASE_URL: postgres://world_server:world_server@postgres:5432/world_server
     depends_on:
       - postgres
   postgres:

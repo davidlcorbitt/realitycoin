@@ -1,0 +1,5 @@
+#! /bin/bash
+
+# Ensures the packages installed in the dev container are in sync with package.json and yarn.lock.
+
+docker exec -it wserver yarn install --frozen-lockfile

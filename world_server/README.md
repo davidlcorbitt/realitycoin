@@ -21,25 +21,25 @@ docker-compose up
 To run a command inside the container:
 
 ```
-docker exec -it wserver [your command]
+./bin/crun [your command]
 ```
 
 To SSH into the running container:
 
 ```
-docker exec -it wserver /bin/bash
+./bin/cshell
 ```
 
-When you install a new dependency, you need to install it _inside_ the container, like so:
+When you install a new dependency, you need to make sure it's installed _inside_ the container. You'll also probably want it on your host machine to get TypeScript definitions in the editor, etc. Here's how to do that:
 
 ```
-docker exec -it wserver yarn add [your package]
+yarn add [your package] && ./bin/cpackagesync
 ```
 
-That said, it's generally useful to keep the packages on your host machine synced as well so eg. TypeScript definitions remain up to date within VS Code. So you can add a package on the dev machine and sync it to the host by running the following:
+If your dev environment got messed up somehow and you just want to start over from scratch, try the following command to clear your `node_modules` and reinstall everything:
 
 ```
-docker exec -it wserver yarn add [your package] && yarn install
+docker-compose up --build --renew-anon-volumes
 ```
 
 ## Inspecting the Database
