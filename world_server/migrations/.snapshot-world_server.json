@@ -31,7 +31,7 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": false,
+          "nullable": true,
           "mappedType": "string"
         },
         "created_at": {
@@ -117,7 +117,7 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": false,
+          "nullable": true,
           "mappedType": "uuid"
         },
         "status": {
@@ -142,7 +142,16 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": false,
+          "nullable": true,
+          "mappedType": "string"
+        },
+        "uploader_ip": {
+          "name": "uploader_ip",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
           "mappedType": "string"
         },
         "collected_at": {
@@ -229,6 +238,7 @@
             "id"
           ],
           "referencedTableName": "public.user",
+          "deleteRule": "set null",
           "updateRule": "cascade"
         }
       }
@@ -277,7 +287,7 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": false,
+          "nullable": true,
           "mappedType": "uuid"
         },
         "unprocessed_collection_id": {
@@ -394,6 +404,7 @@
             "id"
           ],
           "referencedTableName": "public.user",
+          "deleteRule": "set null",
           "updateRule": "cascade"
         },
         "collection_unprocessed_collection_id_foreign": {
@@ -427,7 +438,7 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": false,
+          "nullable": true,
           "mappedType": "uuid"
         },
         "created_at": {
@@ -487,6 +498,7 @@
             "id"
           ],
           "referencedTableName": "public.user",
+          "deleteRule": "set null",
           "updateRule": "cascade"
         }
       }
