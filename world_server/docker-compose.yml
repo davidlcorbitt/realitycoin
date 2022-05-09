@@ -15,7 +15,7 @@ services:
     ports:
       - 8001:8001
       - 9229:9229
-    command: yarn run start:dev
+    command: yarn run start:debug
     env_file:
       - .env
     networks:

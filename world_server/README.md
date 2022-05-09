@@ -4,11 +4,19 @@
 
 Recommended environment: Mac+VS Code.
 
+### Running the Code
+
 - Clone the monorepo
 - navigate to this folder
 - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/). I also recommend following [these instructions](https://www.docker.com/blog/speed-boost-achievement-unlocked-on-docker-desktop-4-6-for-mac/) for much faster local filesystem operations.
 - run `docker-compose up`
 - Load http://localhost:8001/graphql and you should see the GraphQL playground loaded
+
+### Enabling Uploads
+
+We currently use [Storj](https://www.storj.io/) for file storage. You'll need to [create a free Storj account](https://eu1.storj.io/signup), add a bucket, and then [follow these instructions](https://docs.storj.io/dcs/getting-started/quickstart-aws-sdk-and-hosted-gateway-mt/) to generate S3-compatible credentials.
+
+Once you have those credentials you'll need to copy/paste the included [.env.example](./.env.example) file and rename it to `.env`. Then fill in the `STORJ_` environment variables with the information from your specific STORJ account.
 
 ## Common Tasks
 

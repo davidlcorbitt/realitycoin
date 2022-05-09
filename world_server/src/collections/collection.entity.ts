@@ -26,7 +26,7 @@ export class Collection {
   @Property()
   block!: string;
 
-  @ManyToOne()
+  @ManyToOne(() => User)
   miner?: User;
 
   @OneToOne()
