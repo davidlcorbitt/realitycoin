@@ -36,7 +36,7 @@ const MapView = () => {
     hexes.features.forEach((hex) => {
       let color = "rgba(0, 0, 0, 0)";
       if (mappableHexes.has(hex.id as string)) {
-        color = "rgba(0,100,0,0.5)";
+        color = "rgba(0,100,0,0.2)";
       }
       // @ts-expect-error
       hex.properties["fill"] = color;
@@ -74,7 +74,7 @@ const MapView = () => {
             interactive={false}
             id="hexes"
             paint={{
-              "fill-outline-color": "#5DADE2",
+              "fill-outline-color": "rgba(108, 4, 213, 0.5)",
               "fill-color": ["get", "fill"],
             }}
           />
