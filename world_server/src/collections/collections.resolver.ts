@@ -1,3 +1,5 @@
+import { ListBucketsCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { Global } from '@nestjs/common';
 import { Mutation, Resolver } from '@nestjs/graphql';
@@ -17,23 +19,24 @@ export class CollectionsResolver {
     const collection = new UnprocessedCollection({
       contentHash: 'test',
       block: 'test',
-      location: [1, 2],
-      // location: "(-71.060316 48.432044), 4326)",
+      location: { type: 'Point', coordinates: [1, 2] },
       collectedAt: new Date(),
       uploaderIp: 'test',
     });
 
-    const buckets = await this.storj.s3.listBuckets().promise();
-    console.log(buckets.Buckets);
-
-    // this.em.getRepository(UnprocessedCollection).save(collection);
     await this.em.persistAndFlush(collection);
-    const repo = this.em.getRepository(UnprocessedCollection);
-    console.log({ collection });
 
-    const id = collection.id;
+    const signedUrl = await getSignedUrl(
+      this.storj.s3,
+      new PutObjectCommand({
+        Bucket: this.storj.bucket,
+        Key: collection.storjPath(),
+      }),
+      { expiresIn: 3600 * 3 },
+    );
 
-    // this.storj.bucket.g;
-    return 'Hello World! ' + JSON.stringify(collection);
+    console.log({ signedUrl });
+
+    return signedUrl;
   }
 }

@@ -3,14 +3,14 @@ import { Migration } from '@mikro-orm/migrations';
 export class Migration20220509124639 extends Migration {
   async up(): Promise<void> {
     this.addSql(
-      'create table "user" ("id" uuid not null default uuid_generate_v4(), "email" varchar(255) not null, "display_name" varchar(255) null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
+      'create table "user" ("id" uuid not null default gen_random_uuid(), "email" varchar(255) not null, "display_name" varchar(255) null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
     );
     this.addSql(
       'alter table "user" add constraint "user_pkey" primary key ("id");',
     );
 
     this.addSql(
-      'create table "unprocessed_collection" ("id" uuid not null default uuid_generate_v4(), "content_hash" varchar(255) not null, "block" varchar(255) not null, "location" GEOGRAPHY(POINT) not null, "miner_id" uuid null, "status" text check ("status" in (\'REQUESTED\', \'QUEUED\', \'PROCESSING\', \'ACCEPTED\', \'REJECTED\')) not null, "rejected_reason" varchar(255) null, "uploader_ip" varchar(255) null, "collected_at" timestamptz(0) not null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
+      'create table "unprocessed_collection" ("id" uuid not null default gen_random_uuid(), "content_hash" varchar(255) not null, "block" varchar(255) not null, "location" GEOGRAPHY(POINT) not null, "miner_id" uuid null, "status" text check ("status" in (\'REQUESTED\', \'QUEUED\', \'PROCESSING\', \'ACCEPTED\', \'REJECTED\')) not null, "rejected_reason" varchar(255) null, "uploader_ip" varchar(255) null, "collected_at" timestamptz(0) not null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
     );
     this.addSql(
       'create index "unprocessed_collection_block_index" on "unprocessed_collection" ("block");',
@@ -26,7 +26,7 @@ export class Migration20220509124639 extends Migration {
     );
 
     this.addSql(
-      'create table "collection" ("id" uuid not null default uuid_generate_v4(), "content_hash" varchar(255) not null, "location" GEOGRAPHY(POINT) not null, "block" varchar(255) not null, "miner_id" uuid null, "unprocessed_collection_id" uuid not null, "collected_at" timestamptz(0) not null, "uploaded_at" timestamptz(0) not null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
+      'create table "collection" ("id" uuid not null default gen_random_uuid(), "content_hash" varchar(255) not null, "location" GEOGRAPHY(POINT) not null, "block" varchar(255) not null, "miner_id" uuid null, "unprocessed_collection_id" uuid not null, "collected_at" timestamptz(0) not null, "uploaded_at" timestamptz(0) not null, "created_at" timestamptz(0) not null default now(), "updated_at" timestamptz(0) not null default now());',
     );
     this.addSql(
       'create index "collection_block_index" on "collection" ("block");',

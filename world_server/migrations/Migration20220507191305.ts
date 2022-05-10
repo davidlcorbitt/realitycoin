@@ -2,7 +2,7 @@ import { Migration } from '@mikro-orm/migrations';
 
 export class Migration20220507191305 extends Migration {
   async up(): Promise<void> {
-    // Initial migration to add the extensions we use.
+    // Initial migration to add PostGIS extensions.
     this.addSql(`
       CREATE EXTENSION postgis;
       -- enable raster support (for 3+)
@@ -17,13 +17,8 @@ export class Migration20220507191305 extends Migration {
       CREATE EXTENSION fuzzystrmatch;
       -- rule based standardizer
       CREATE EXTENSION address_standardizer;
-      -- example rule data set
-      CREATE EXTENSION address_standardizer_data_us;
       -- Enable US Tiger Geocoder
       CREATE EXTENSION postgis_tiger_geocoder;
-
-      -- Enable UUIDs
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     `);
   }
 }

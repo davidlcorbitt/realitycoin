@@ -56,7 +56,7 @@ class GISPoint extends Type<Point | undefined, string | undefined> {
 
 @Entity()
 export class UnprocessedCollection {
-  @PrimaryKey({ type: 'uuid', defaultRaw: 'uuid_generate_v4()' })
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string;
 
   @Property()
@@ -96,4 +96,6 @@ export class UnprocessedCollection {
   constructor(data?: Partial<UnprocessedCollection>) {
     Object.assign(this, data);
   }
+
+  storjPath = (): string => `unprocessed_collection/${this.id}`;
 }

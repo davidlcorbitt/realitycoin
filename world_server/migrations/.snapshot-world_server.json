@@ -1,7 +1,5 @@
 {
-  "namespaces": [
-    "public"
-  ],
+  "namespaces": ["public"],
   "name": "public",
   "tables": [
     {
@@ -13,7 +11,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "default": "uuid_generate_v4()",
+          "default": "gen_random_uuid()",
           "mappedType": "uuid"
         },
         "email": {
@@ -62,9 +60,7 @@
       "indexes": [
         {
           "keyName": "user_pkey",
-          "columnNames": [
-            "id"
-          ],
+          "columnNames": ["id"],
           "composite": false,
           "primary": true,
           "unique": true
@@ -82,7 +78,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "default": "uuid_generate_v4()",
+          "default": "gen_random_uuid()",
           "mappedType": "uuid"
         },
         "content_hash": {
@@ -105,7 +101,7 @@
         },
         "location": {
           "name": "location",
-          "type": "GEOGRAPHY(POINT)",
+          "type": "geography(point, 4326)",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
@@ -191,18 +187,14 @@
       "schema": "public",
       "indexes": [
         {
-          "columnNames": [
-            "block"
-          ],
+          "columnNames": ["block"],
           "composite": false,
           "keyName": "unprocessed_collection_block_index",
           "primary": false,
           "unique": false
         },
         {
-          "columnNames": [
-            "created_at"
-          ],
+          "columnNames": ["created_at"],
           "composite": false,
           "keyName": "unprocessed_collection_created_at_index",
           "primary": false,
@@ -210,9 +202,7 @@
         },
         {
           "keyName": "unprocessed_collection_location_index",
-          "columnNames": [
-            "location"
-          ],
+          "columnNames": ["location"],
           "composite": false,
           "primary": false,
           "unique": false,
@@ -220,9 +210,7 @@
         },
         {
           "keyName": "unprocessed_collection_pkey",
-          "columnNames": [
-            "id"
-          ],
+          "columnNames": ["id"],
           "composite": false,
           "primary": true,
           "unique": true
@@ -232,13 +220,9 @@
       "foreignKeys": {
         "unprocessed_collection_miner_id_foreign": {
           "constraintName": "unprocessed_collection_miner_id_foreign",
-          "columnNames": [
-            "miner_id"
-          ],
+          "columnNames": ["miner_id"],
           "localTableName": "public.unprocessed_collection",
-          "referencedColumnNames": [
-            "id"
-          ],
+          "referencedColumnNames": ["id"],
           "referencedTableName": "public.user",
           "deleteRule": "set null",
           "updateRule": "cascade"
@@ -254,7 +238,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "default": "uuid_generate_v4()",
+          "default": "gen_random_uuid()",
           "mappedType": "uuid"
         },
         "content_hash": {
@@ -348,27 +332,21 @@
       "schema": "public",
       "indexes": [
         {
-          "columnNames": [
-            "block"
-          ],
+          "columnNames": ["block"],
           "composite": false,
           "keyName": "collection_block_index",
           "primary": false,
           "unique": false
         },
         {
-          "columnNames": [
-            "unprocessed_collection_id"
-          ],
+          "columnNames": ["unprocessed_collection_id"],
           "composite": false,
           "keyName": "collection_unprocessed_collection_id_unique",
           "primary": false,
           "unique": true
         },
         {
-          "columnNames": [
-            "created_at"
-          ],
+          "columnNames": ["created_at"],
           "composite": false,
           "keyName": "collection_created_at_index",
           "primary": false,
@@ -376,9 +354,7 @@
         },
         {
           "keyName": "collection_location_index",
-          "columnNames": [
-            "location"
-          ],
+          "columnNames": ["location"],
           "composite": false,
           "primary": false,
           "unique": false,
@@ -386,9 +362,7 @@
         },
         {
           "keyName": "collection_pkey",
-          "columnNames": [
-            "id"
-          ],
+          "columnNames": ["id"],
           "composite": false,
           "primary": true,
           "unique": true
@@ -398,26 +372,18 @@
       "foreignKeys": {
         "collection_miner_id_foreign": {
           "constraintName": "collection_miner_id_foreign",
-          "columnNames": [
-            "miner_id"
-          ],
+          "columnNames": ["miner_id"],
           "localTableName": "public.collection",
-          "referencedColumnNames": [
-            "id"
-          ],
+          "referencedColumnNames": ["id"],
           "referencedTableName": "public.user",
           "deleteRule": "set null",
           "updateRule": "cascade"
         },
         "collection_unprocessed_collection_id_foreign": {
           "constraintName": "collection_unprocessed_collection_id_foreign",
-          "columnNames": [
-            "unprocessed_collection_id"
-          ],
+          "columnNames": ["unprocessed_collection_id"],
           "localTableName": "public.collection",
-          "referencedColumnNames": [
-            "id"
-          ],
+          "referencedColumnNames": ["id"],
           "referencedTableName": "public.unprocessed_collection",
           "updateRule": "cascade"
         }
@@ -470,9 +436,7 @@
       "schema": "public",
       "indexes": [
         {
-          "columnNames": [
-            "owner_id"
-          ],
+          "columnNames": ["owner_id"],
           "composite": false,
           "keyName": "block_owner_id_index",
           "primary": false,
@@ -480,9 +444,7 @@
         },
         {
           "keyName": "block_pkey",
-          "columnNames": [
-            "id"
-          ],
+          "columnNames": ["id"],
           "composite": false,
           "primary": true,
           "unique": true
@@ -492,13 +454,9 @@
       "foreignKeys": {
         "block_owner_id_foreign": {
           "constraintName": "block_owner_id_foreign",
-          "columnNames": [
-            "owner_id"
-          ],
+          "columnNames": ["owner_id"],
           "localTableName": "public.block",
-          "referencedColumnNames": [
-            "id"
-          ],
+          "referencedColumnNames": ["id"],
           "referencedTableName": "public.user",
           "deleteRule": "set null",
           "updateRule": "cascade"
