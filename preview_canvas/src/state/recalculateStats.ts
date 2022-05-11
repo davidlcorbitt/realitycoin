@@ -13,6 +13,7 @@ import { RootState } from "./store";
 // From https://h3geo.org/docs/core-library/restable/
 const HEX_EDGE_LENGTH = 0.024910561;
 const H3_RESOLUTION = 11;
+const STREET_CHUNK_LENGTH = 0.02;
 
 
 // Convert GeoJSON BBox to Overpass QL BBox
@@ -82,7 +83,7 @@ const recalculateStats = createAsyncThunk<void, never, { state: RootState }>(
         // Split each street into 20-meter chunks. We'll use the coordinates of
         // the endpoint of each chunk to find (approximately) all the hexes it
         // passes through.
-        let segments = turf.lineChunk(street, 0.02);
+        let segments = turf.lineChunk(street, STREET_CHUNK_LENGTH);
 
         const streetPoints = segments.features.map((segment) => segment.geometry.coordinates[0]);
         streetPoints.push(street.geometry.coordinates.slice(-1)[0]);
