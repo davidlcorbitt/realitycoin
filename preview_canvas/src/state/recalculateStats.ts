@@ -12,6 +12,8 @@ import { RootState } from "./store";
 
 // From https://h3geo.org/docs/core-library/restable/
 const HEX_EDGE_LENGTH = 0.024910561;
+const H3_RESOLUTION = 11;
+
 
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
@@ -54,7 +56,7 @@ const recalculateStats = createAsyncThunk<void, never, { state: RootState }>(
     debug("Generating set of hexes in AOI");
     // Get a slightly larger polygon so we include hexes that are only partially inside the AOI.
     const expandedAOI = turf.buffer(areaOfInterest, HEX_EDGE_LENGTH);
-    const aoiHexes = new Set(featureToH3Set(expandedAOI, 11));
+    const aoiHexes = new Set(featureToH3Set(expandedAOI, H3_RESOLUTION));
     dispatch(mapSlice.actions.set({ aoiHexes: Array.from(aoiHexes) }));
 
     debug("Fetching OSM data");
@@ -84,7 +86,7 @@ const recalculateStats = createAsyncThunk<void, never, { state: RootState }>(
 
         const streetPoints = segments.features.map((segment) => segment.geometry.coordinates[0]);
         streetPoints.push(street.geometry.coordinates.slice(-1)[0]);
-        return streetPoints.map((point) => geoToH3(point[1], point[0], 11));
+        return streetPoints.map((point) => geoToH3(point[1], point[0], H3_RESOLUTION));
       });
 
     debug("Deduping mappable hexes");
