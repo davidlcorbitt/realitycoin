@@ -15,7 +15,6 @@ const HEX_EDGE_LENGTH = 0.024910561;
 const H3_RESOLUTION = 11;
 const STREET_CHUNK_LENGTH = 0.02;
 
-
 // Convert GeoJSON BBox to Overpass QL BBox
 function overpassBbox(feature: turf.Feature<turf.Polygon>) {
   const bbox = turf.bbox(feature);
